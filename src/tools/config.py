@@ -3,6 +3,9 @@ import numpy as np
 import os
 
 
+DEFAULT_CONFIG_FILE_PATH = 'config.yml'
+
+
 class Config():
 
     def __init__(self):
@@ -39,7 +42,7 @@ class Config():
             'products': 15
         }
 
-    def customize(self, fpath=os.path.join('..','..','config.yml')):
+    def customize(self, fpath=DEFAULT_CONFIG_FILE_PATH):
         with open(fpath, 'r') as f:
             config_dict = yaml.safe_load(f)
         for prm_name, prm_value in config_dict.items():
@@ -58,4 +61,3 @@ class Config():
 
 
 cfg = Config()
-cfg.customize()

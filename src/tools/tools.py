@@ -1,6 +1,7 @@
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
+import os
 from src.read_data.read_REMIND_regions import get_region_to_countries_df
 from src.tools.config import cfg
 
@@ -46,10 +47,7 @@ def transform_per_capita(df, total_from_per_capita, country_specific):
     # un_pop files need to be imported here to avoid circular import error
     from src.read_data.read_UN_population import load_un_pop
 
-    if country_specific:
-        df_pop = load_un_pop(country_specific=True)
-    else:  # region specific
-        df_pop = load_un_pop(country_specific=False)
+    df_pop = load_un_pop(country_specific)
     columns_to_use = df.columns.intersection(df_pop.columns)
 
     if total_from_per_capita:
@@ -76,6 +74,15 @@ def group_country_data_to_regions(df_by_country, is_per_capita, group_by_subcate
         df = transform_per_capita(df, total_from_per_capita=False, country_specific=False)
 
     return df
+
+
+def do_load_previous_data(path_in_data_dir, recalculate_data_force=None):
+    if recalculate_data_force is None:
+        recalculate_data = cfg.recalculate_data
+    else:
+        recalculate_data = recalculate_data_force
+    full_path = os.path.join(cfg.data_path, path_in_data_dir)
+    return os.path.exists(full_path) and not recalculate_data
 
 
 class Years:

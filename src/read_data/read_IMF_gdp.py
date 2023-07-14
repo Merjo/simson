@@ -5,6 +5,7 @@ from src.tools.tools import fill_missing_values_linear
 from src.tools.tools import group_country_data_to_regions
 from src.tools.tools import transform_per_capita
 from src.tools.tools import read_processed_data
+from src.tools.tools import do_load_previous_data
 from src.read_data.read_REMIND_regions import get_region_to_countries_df
 
 
@@ -24,9 +25,9 @@ def load_imf_gdp(country_specific=False, per_capita=True):
 # -- MAIN DATA LOADING FUNCTIONS --
 
 
-def _load_imf_gdp_pc_regions():
-    gdp_regions_path = os.path.join(cfg.data_path, 'processed', 'imf_gdp_regions.csv')
-    if os.path.exists(gdp_regions_path) and not cfg.recalculate_data:
+def _load_imf_gdp_pc_regions(recalculate_data=None):
+    gdp_regions_path = 'processed/imf_gdp_regions.csv'
+    if do_load_previous_data(gdp_regions_path, recalculate_data):
         df = read_processed_data(gdp_regions_path)
     else:  # recalculate and store
         df_by_country = _load_imf_gdp_pc_countries()
@@ -51,14 +52,14 @@ def _load_imf_gdp_pc_countries():
 def _get_imf_countries():
     df_current = _read_imf_original()
     df_future = _get_future_gdp_pc()
-    df_past = get_past_according_to_gdppc_estimates(df_current)
+    df_past = get_past_gdppc_from_estimates(df_current)
     df = df_past.merge(df_current, on='country')
     df = df.merge(df_future, on='country')
     df = fill_missing_values_linear(df)
     return df
 
 
-def get_past_according_to_gdppc_estimates(df_current):
+def get_past_gdppc_from_estimates(df_current):
     past_region_percentages = _read_1900_1940_region_percentages_of_1950_gdps()
     past_country_percentages = _get_past_percentages_by_country(past_region_percentages)
     df_past = past_country_percentages.multiply(df_current[1950], axis=0)
@@ -145,7 +146,7 @@ def _test():
     countries = _load_imf_gdp_pc_countries()
     print("\nCountries: ")
     print(countries)
-    regions = _load_imf_gdp_pc_regions()
+    regions = _load_imf_gdp_pc_regions(recalculate_data=True)
     print("Regions: ")
     print(regions)
 
