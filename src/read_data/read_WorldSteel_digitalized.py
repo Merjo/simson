@@ -33,11 +33,12 @@ def read_worldsteel_database_file(filename, skiprows, nrows, usecols):
                        skiprows=skiprows,
                        nrows=nrows,
                        usecols=usecols)
+    df.iloc[:, 1:] *= 1000  # as data is given in thousand metric tons
     return df
 
 
 def read_worldsteel_yearbook_data(filename: str):
     path = os.path.join(WS_DIGITALIZED_PATH, filename)
     df = pd.read_excel(path)
-
+    df.iloc[:, 1:] *= 1000  # as data is given in thousand metric tons
     return df

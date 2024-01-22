@@ -27,9 +27,9 @@ def _test():
     use_recycling_params, recycling_usable_params = get_wittig_distributions()
     fabrication_yield = get_cullen_fabrication_yield()
 
-    print(f'Use-Recycling-Distribution: {use_recycling_params}')
-    print(f'Recycling-Usable-Distribution: {recycling_usable_params}')
-    print(f'Fabrication_Yield: {fabrication_yield}')
+    print(f'Use-Recycling-Distribution: \n{use_recycling_params}\n')
+    print(f'Recycling-Usable-Distribution: \n{recycling_usable_params}\n')
+    print(f'Fabrication_Yield: \n{fabrication_yield}\n')
 
 
 if __name__ == '__main__':

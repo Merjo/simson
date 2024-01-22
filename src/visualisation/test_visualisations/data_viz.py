@@ -1,4 +1,4 @@
-from ODYM.odym.modules import dynamic_stock_model as dsm  # import the dynamic stock model library
+from ODYM.odym.modules import dynamic_stock_model as dsm  # import the dynamic stock base_model library
 import sys
 import os
 import numpy as np

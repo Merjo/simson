@@ -1,6 +1,6 @@
 from src.tools.config import cfg
 from src.read_data.load_data import load_steel_prices, load_scrap_prices
-from src.model.model_tools import calc_change_timeline
+from src.base_model.model_tools import calc_change_timeline
 
 
 def get_steel_prices():

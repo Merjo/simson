@@ -1,6 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from src.model.simson_base_model import load_simson_base_model, ENV_PID, BOF_PID, EAF_PID, FORM_PID, FABR_PID, \
+from src.base_model.simson_base_model import load_simson_base_model, ENV_PID, BOF_PID, EAF_PID, FORM_PID, FABR_PID, \
     USE_PID, SCRAP_PID, RECYCLE_PID, WASTE_PID, DISNOTCOL_PID
 from src.tools.config import cfg
 from src.read_data.load_data import load_region_names_list
@@ -31,14 +31,15 @@ ignore_1900 = False
 
 limit_regions = False
 regions_to_use_remind = ['CHA', 'USA', 'EUR']
+# Options: ['CAZ', 'CHA', 'EUR', 'IND', 'JPN', 'LAM', 'MEA', 'NEU', 'OAS', 'REF', 'SSA', 'USA']
 regions_to_use_pauliuk = ['NAM']
 
 limit_time = False
 start_year = 2000
 end_year = 2050
 
-# If getting wrong results it might be that recalculating model and dsms help.
-# This is especially relevant when config has been changed after last load of model.
+# If getting wrong results it might be that recalculating base_model and dsms help.
+# This is especially relevant when config has been changed after last load of base_model.
 force_recalculate = False
 
 

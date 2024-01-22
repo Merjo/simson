@@ -1,10 +1,12 @@
+import numpy as np
 from src.read_data.load_data import load_production, load_use_1970_2021
 from src.tools.tools import get_np_from_df
 from src.calc_trade.calc_trade_tools import expand_trade_to_past_and_future, get_imports_and_exports_from_net_trade, \
-    get_trade_test_data, visualize_trade
+    get_trade_test_data, visualize_trade, scale_trade
 
 
 def get_trade(country_specific, scaler):
+    # TODO check usages of trade functions all together
     net_trade_1970_2021 = _get_net_trade_1970_2021(country_specific)
     net_trade = expand_trade_to_past_and_future(net_trade_1970_2021,
                                                 scaler=scaler,
@@ -14,6 +16,17 @@ def get_trade(country_specific, scaler):
     imports, exports = get_imports_and_exports_from_net_trade(net_trade)
 
     return imports, exports
+
+
+def get_scaled_past_trade(country_specific, scaler):
+    scaler = scaler[:71]  # only use scaler up to 1970
+    net_trade_1970_2021 = _get_net_trade_1970_2021(country_specific)
+    net_trade_1900_1969 = scale_trade(trade=net_trade_1970_2021,
+                                      scaler=scaler,
+                                      do_past_not_future=True)
+
+    trade = np.concatenate((net_trade_1900_1969, net_trade_1970_2021), axis=0)
+    return trade
 
 
 def _get_net_trade_1970_2021(country_specific):

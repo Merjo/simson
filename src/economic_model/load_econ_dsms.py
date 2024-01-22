@@ -1,5 +1,5 @@
 from ODYM.odym.modules import dynamic_stock_model as dsm
-from src.model.load_dsms import load_dsms
+from src.base_model.load_dsms import load_dsms
 from src.tools.config import cfg
 
 
@@ -15,7 +15,7 @@ def load_econ_dsms(country_specific, p_st, p_0_st, recalculate):
                                                           lt=scenario_dsm.lt)
                 new_scenarion_dsm.compute_s_c_inflow_driven()
                 new_scenarion_dsm.compute_o_c_from_s_c()
-                new_scenarion_dsm.compute_stock_total()
+                new_scenarion_dsm.compute_stock_total()  # TODO change to own ODYM extensions
                 new_scenarion_dsm.compute_outflow_total()
                 new_scenarion_dsm.compute_stock_change()
                 scenario_dsm.i = new_scenarion_dsm.i

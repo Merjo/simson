@@ -22,9 +22,9 @@ class MultiDim_DynamicStockModel(DynamicStockModel):
         balance = self.check_stock_balance()
         balance = np.abs(balance).sum()
         if balance > 1:  # 1 tonne accuracy
-            raise RuntimeError("Stock balance for dynamic stock model is too high: " + str(balance))
+            raise RuntimeError("Stock balance for dynamic stock base_model is too high: " + str(balance))
         elif balance > 0.001:
-            print("Stock balance for model dynamic stock model is noteworthy: " + str(balance))
+            print("Stock balance for base_model dynamic stock base_model is noteworthy: " + str(balance))
 
 
 def _test():

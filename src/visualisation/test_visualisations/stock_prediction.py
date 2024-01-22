@@ -1,4 +1,4 @@
-from ODYM.odym.modules import dynamic_stock_model as dsm  # import the dynamic stock model library
+from ODYM.odym.modules import dynamic_stock_model as dsm  # import the dynamic stock base_model library
 import sys
 import os
 import numpy as np
@@ -36,7 +36,7 @@ def predict(histdata, satlevel, sattime):
     if (
             C < s0 + gradient):  # saturation is already reached and/or current gradient + current stock level is higher than saturation
         C = (
-                        s0 + gradient) * 1.00001  # new target saturation level is 0.002 % higher than current level, will result in de facto constant stock level
+                    s0 + gradient) * 1.00001  # new target saturation level is 0.002 % higher than current level, will result in de facto constant stock level
         A = (s0 + gradient) * 1.00002
     D = gradient
     E = D + s0

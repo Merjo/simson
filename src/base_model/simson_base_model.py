@@ -3,16 +3,17 @@ import pandas as pd
 import os
 import sys
 import pickle
-import csv
 from ODYM.odym.modules.ODYM_Classes import MFAsystem, Classification, Process, Parameter
 from src.odym_extension.SimDiGraph_MFAsystem import SimDiGraph_MFAsystem
 from src.tools.config import cfg
-from src.model.model_tools import get_dsm_data, get_stock_data_country_specific_areas, calc_change_timeline
-from src.model.load_dsms import load_dsms
-from src.model.load_params import get_cullen_fabrication_yield, get_wittig_distributions
+from src.base_model.model_tools import get_dsm_data, get_stock_data_country_specific_areas, calc_change_timeline
+from src.base_model.load_dsms import load_dsms
+from src.base_model.load_params import get_cullen_fabrication_yield, get_wittig_distributions
 from src.calc_trade.calc_trade import get_trade
 from src.calc_trade.calc_scrap_trade import get_scrap_trade
 from src.calc_trade.calc_indirect_trade import get_indirect_trade
+from src.calc_trade.calc_trade_tools import get_imports_and_exports_from_net_trade
+from src.modelling_approaches.compute_upper_cycle import compute_upper_cycle
 
 #  constants: MFA System process IDs
 
@@ -55,7 +56,7 @@ def create_model(country_specific, dsms, scrap_share_in_production=None):
     areas = get_stock_data_country_specific_areas(country_specific)
     main_model = set_up_model(areas)
     stocks, inflows, outflows = get_dsm_data(dsms)
-    # Load model
+    # Load base_model
     initiate_model(main_model)
 
     # compute stocks and flows
@@ -63,7 +64,7 @@ def create_model(country_specific, dsms, scrap_share_in_production=None):
                   max_scrap_share_in_production)
     compute_stocks(main_model, stocks, inflows, outflows)
 
-    # check model
+    # check base_model
     balance_message = mass_balance_plausible(main_model)
 
     return main_model, balance_message
@@ -158,11 +159,11 @@ def initiate_parameters(main_model):
 
 
 def initiate_flows(main_model):
-    main_model.init_flow('Iron production - BOF production', ENV_PID, BOF_PID, 't,e,r,s')
-    main_model.init_flow('Recycling - BOF production', RECYCLE_PID, BOF_PID, 't,e,r,s')
-    main_model.init_flow('BOF production - Forming', BOF_PID, FORM_PID, 't,e,r,s')
-    main_model.init_flow('Recycling - EAF production', RECYCLE_PID, EAF_PID, 't,e,r,s')
-    main_model.init_flow('EAF production - Forming', EAF_PID, FORM_PID, 't,e,r,s')
+    main_model.init_flow('Iron scaler - BOF scaler', ENV_PID, BOF_PID, 't,e,r,s')
+    main_model.init_flow('Recycling - BOF scaler', RECYCLE_PID, BOF_PID, 't,e,r,s')
+    main_model.init_flow('BOF scaler - Forming', BOF_PID, FORM_PID, 't,e,r,s')
+    main_model.init_flow('Recycling - EAF scaler', RECYCLE_PID, EAF_PID, 't,e,r,s')
+    main_model.init_flow('EAF scaler - Forming', EAF_PID, FORM_PID, 't,e,r,s')
 
     main_model.init_flow('Forming - Fabrication', FORM_PID, FABR_PID, 't,e,r,s')
     main_model.init_flow('Forming - Scrap', FORM_PID, SCRAP_PID, 't,e,r,w,s')
@@ -191,7 +192,7 @@ def initiate_stocks(main_model):
 
 def check_consistency(main_model: MFAsystem):
     """
-    Uses ODYM consistency checks to see if model dimensions and structure are well
+    Uses ODYM consistency checks to see if base_model dimensions and structure are well
     defined. Raises RuntimeError if not.
 
     :param main_model: The MFA System
@@ -214,37 +215,35 @@ def compute_flows(model: MFAsystem, country_specific: bool,
     :param max_scrap_share_in_production:
     :return:
     """
+
+    # Compute upper cycle
+    # production, trade, forming_fabrication, fabrication_use, indirect_trade, inflows, stocks, outflows
+
     use_eol_distribution, eol_recycle_distribution, fabrication_yield = _get_params(model)
 
-    reuse = None
-    if cfg.do_change_reuse:
+    reuse = None  # TODO: necessary?
+    if cfg.do_change_reuse and not cfg.do_model_approaches:  # TODO: model approaches with reuse?
         # one is substracted as one was added to multiply scenario and category reuse changes
         reuse_factor_timeline = calc_change_timeline(cfg.reuse_factor, cfg.reuse_change_base_year) - 1
         reuse = np.einsum('trgs,tgs->trgs', outflows, reuse_factor_timeline)
         inflows -= reuse
         outflows -= reuse
 
-    total_demand = np.sum(inflows, axis=2)
+    production, forming_fabrication, imports, exports, fabrication_use, indirect_imports, indirect_exports, \
+    inflows, outflows = compute_upper_cycle_base_model(country_specific, inflows, outflows, fabrication_yield) \
+        if not cfg.do_model_approaches \
+        else compute_upper_cycle_modelling_approaches()
 
-    indirect_imports, indirect_exports = get_indirect_trade(country_specific=country_specific,
-                                                            scaler=total_demand,
-                                                            inflows=inflows,
-                                                            outflows=outflows)
-    direct_inflows = inflows - indirect_imports + indirect_exports
+    # todo delete test
+    total_inflow = fabrication_use + indirect_imports - indirect_exports
+    test_inflow = inflows - total_inflow
+    test_inflow2 = test_inflow < 1
+    test_inflow3 = np.all(test_inflow2)
 
-    direct_demand = np.sum(direct_inflows, axis=2)
-
-    inverse_fabrication_yield = 1 / fabrication_yield
-    fabrication_by_category = np.einsum('trgs,g->trgs', direct_inflows, inverse_fabrication_yield)
-    fabrication = np.sum(fabrication_by_category, axis=2)
-    fabrication_scrap = fabrication - direct_demand
-
-    imports, exports = get_trade(country_specific=country_specific, scaler=total_demand)
-
-    forming_fabrication = fabrication
-    production_plus_trade = forming_fabrication * (1 / cfg.forming_yield)
+    direct_demand = np.sum(fabrication_use, axis=2)
+    fabrication_scrap = forming_fabrication - direct_demand
+    production_plus_trade = production + imports - exports  # TODO avoid duplicate somehow?
     forming_scrap = production_plus_trade - forming_fabrication
-    production = production_plus_trade + exports - imports
 
     outflows_by_waste = np.einsum('trgs,gw->trgws', outflows, use_eol_distribution)
     use_eol = np.zeros_like(outflows_by_waste)
@@ -281,15 +280,84 @@ def compute_flows(model: MFAsystem, country_specific: bool,
     scrap_in_production = scrap_in_bof + eaf_production
     waste = np.sum(total_scrap, axis=2) - scrap_in_production
 
+    # todo delete tests
+    total_outflow = np.sum(use_eol, axis=-2) + np.sum(use_env, axis=-2)
+    test = outflows - total_outflow
+    test2 = test < 1
+    test3 = np.all(test2)
+
+    total_inflow = fabrication_use + indirect_imports - indirect_exports
+    test_inflow = inflows - total_inflow
+    test_inflow2 = test_inflow < 1
+    test_inflow3 = np.all(test_inflow2)
+
     edit_flows(model, iron_production, scrap_in_bof, bof_production, eaf_production, forming_fabrication, forming_scrap,
-               imports, exports, direct_inflows, reuse, fabrication_scrap, use_eol, use_env, scrap_imports,
+               imports, exports, fabrication_use, reuse, fabrication_scrap, use_eol, use_env, scrap_imports,
                scrap_exports, scrap_in_production, waste, indirect_imports, indirect_exports)
 
     return model
 
 
+def compute_upper_cycle_modelling_approaches():
+    production, trade, forming_fabrication, fabrication_use, indirect_trade, inflows, stocks, outflows = \
+        compute_upper_cycle(model_type=cfg.model_type)
+    imports, exports = get_imports_and_exports_from_net_trade(trade)
+    indirect_imports, indirect_exports = get_imports_and_exports_from_net_trade(indirect_trade)
+
+    # test 2 todo delete
+    trest = fabrication_use + indirect_trade - inflows
+    trest2 = trest < 1
+    trest3 = np.all(trest2)
+
+    total_inflow = fabrication_use + indirect_imports - indirect_exports
+    test_inflow = inflows - total_inflow
+    test_inflow2 = test_inflow < 1
+    test_inflow3 = np.all(test_inflow2)
+
+    # test TODO delete
+    stock_change = np.zeros_like(stocks)
+    stock_change[0] = stocks[0]
+    stock_change[1:] = stocks[1:] - stocks[:-1]
+    stock_change2 = inflows - outflows
+    test = stock_change - stock_change2
+    test2 = test < 1
+    test3 = np.all(test2)
+    test4 = np.sum(np.abs(test))
+    test5 = test4 < 1
+
+    # todo delete test
+    ttest = fabrication_use + indirect_imports - indirect_exports - outflows - stock_change
+    ttest2 = np.sum(np.abs(ttest))
+    ttest3 = ttest2 < 1
+
+    return production, forming_fabrication, imports, exports, fabrication_use, indirect_imports, indirect_exports, \
+           inflows, outflows
+
+
+def compute_upper_cycle_base_model(country_specific, inflows, outflows, fabrication_yield):
+    total_demand = np.sum(inflows, axis=2)
+
+    indirect_imports, indirect_exports = get_indirect_trade(country_specific=country_specific,
+                                                            scaler=total_demand,
+                                                            inflows=inflows,
+                                                            outflows=outflows)
+    fabrication_use = inflows - indirect_imports + indirect_exports
+
+    inverse_fabrication_yield = 1 / fabrication_yield
+    fabrication_by_category = np.einsum('trgs,g->trgs', fabrication_use, inverse_fabrication_yield)
+    forming_fabrication = np.sum(fabrication_by_category, axis=2)
+
+    imports, exports = get_trade(country_specific=country_specific, scaler=total_demand)
+
+    production_plus_trade = forming_fabrication * (1 / cfg.forming_yield)
+    production = production_plus_trade + exports - imports
+
+    return production, forming_fabrication, imports, exports, fabrication_use, indirect_imports, indirect_exports, \
+           inflows, outflows
+
+
 def edit_flows(model, iron_production, scrap_in_bof, bof_production, eaf_production, forming_fabrication, forming_scrap,
-               imports, exports, production_inflows, reuse, fabrication_scrap, use_eol, use_env, scrap_imports,
+               imports, exports, fabrication_use, reuse, fabrication_scrap, use_eol, use_env, scrap_imports,
                scrap_exports, scrap_in_production, waste, indirect_imports, indirect_exports):
     model.get_flowV(ENV_PID, BOF_PID)[:, 0] = iron_production
     model.get_flowV(RECYCLE_PID, BOF_PID)[:, 0] = scrap_in_bof
@@ -300,7 +368,7 @@ def edit_flows(model, iron_production, scrap_in_bof, bof_production, eaf_product
     model.get_flowV(FORM_PID, SCRAP_PID)[:, 0, :, cfg.recycling_categories.index('Form')] = forming_scrap
     model.get_flowV(ENV_PID, FORM_PID)[:, 0] = imports
     model.get_flowV(FORM_PID, ENV_PID)[:, 0] = exports
-    model.get_flowV(FABR_PID, USE_PID)[:, 0] = production_inflows
+    model.get_flowV(FABR_PID, USE_PID)[:, 0] = fabrication_use
     model.get_flowV(ENV_PID, USE_PID)[:, 0] = indirect_imports
     model.get_flowV(USE_PID, ENV_PID)[:, 0] = indirect_exports
     model.get_flowV(FABR_PID, SCRAP_PID)[:, 0, :, cfg.recycling_categories.index('Fabr')] = fabrication_scrap
@@ -312,6 +380,13 @@ def edit_flows(model, iron_production, scrap_in_bof, bof_production, eaf_product
     model.get_flowV(SCRAP_PID, ENV_PID)[:, 0] = scrap_exports
     model.get_flowV(SCRAP_PID, RECYCLE_PID)[:, 0] = scrap_in_production
     model.get_flowV(SCRAP_PID, WASTE_PID)[:, 0] = waste
+
+    # todo delete test
+    test = fabrication_use + indirect_imports - indirect_exports - np.sum(use_eol, axis=-2), - np.sum(use_env, axis=-2)
+    test2 = np.sum(np.abs(test))
+    test3 = test2 < 1
+
+    a = 0
 
 
 def _get_params(model):
@@ -338,6 +413,22 @@ def _calc_max_scrap_share(scrap_share_in_production, n_regions):
 
 
 def compute_stocks(model, stocks, inflows, outflows):
+    if cfg.do_model_approaches:
+        production, trade, forming_fabrication, fabrication_use, indirect_trade, inflows, stocks, outflows = \
+            compute_upper_cycle(model_type=cfg.model_type)
+
+    # todo: delete test
+    # test TODO delete
+    stock_change = np.zeros_like(stocks)
+    stock_change[0] = stocks[0]
+    stock_change[1:] = stocks[1:] - stocks[:-1]
+    stock_change2 = inflows - outflows
+    test = stock_change - stock_change2
+    test2 = test < 1
+    test3 = np.all(test2)
+    test4 = np.sum(np.abs(test))
+    test5 = test4 < 1
+
     in_use_stock = model.get_stockV(USE_PID)
     in_use_stock_change = model.get_stock_changeV(USE_PID)
     in_use_stock[:, 0, :, :] = stocks
@@ -360,13 +451,33 @@ def mass_balance_plausible(main_model):
     Checks if a given mass balance is plausible.
     :return: True if the mass balance for all processes is below 1t of steel, False otherwise.
     """
-
+    # todo delete test
+    fabrication_use = main_model.get_flowV(FABR_PID, USE_PID)[:, 0]
+    indirect_imports = main_model.get_flowV(ENV_PID, USE_PID)[:, 0]
+    indirect_exports = main_model.get_flowV(USE_PID, ENV_PID)[:, 0]
+    use_disnotcol = np.sum(main_model.get_flowV(USE_PID, DISNOTCOL_PID)[:, 0], axis=-2)
+    use_scrap = np.sum(main_model.get_flowV(USE_PID, SCRAP_PID)[:, 0], axis=-2)
+    stock_change = main_model.get_stock_changeV(USE_PID)[:, 0]
+    inflows = fabrication_use + indirect_imports - indirect_exports
+    outflows = use_disnotcol + use_scrap
+    stock_change2 = inflows - outflows
+    test = stock_change - stock_change2
+    test2 = np.sum(np.abs(test)) < 1
     balance = main_model.MassBalance()
-    for val in np.abs(balance).sum(axis=0).sum(axis=1):
-        if val > 1:
-            raise RuntimeError(
-                "Error, Mass Balance summary below\n" + str(np.abs(balance).sum(axis=0).sum(axis=1)))
-    return f"Success - Model loaded and checked. \nBalance: {str(list(np.abs(balance).sum(axis=0).sum(axis=1)))}.\n"
+
+    balance = np.abs(np.sum(balance, axis=(0, 2)))
+    error = balance > 1
+    if np.any(error):
+        error_message = f"Error in mass balance of model\n"
+        for idx, error_occured in enumerate(error):
+            if idx == 0:  # Environment will always have an error
+                continue
+            if error_occured:
+                error_message += f"\nError in process {idx} '{main_model.ProcessList[idx].Name}': {balance[idx]}"
+        error_message += f"\n\nBalance summary: {balance}"
+        raise RuntimeError(error_message)
+    else:
+        return f"Success - Model loaded and checked. \nBalance: {balance}.\n"
 
 
 def main():

@@ -3,7 +3,7 @@ import pickle
 from scipy.optimize import newton
 import numpy as np
 from src.odym_extension.SimDiGraph_MFAsystem import SimDiGraph_MFAsystem
-from src.model.simson_base_model import create_model, ENV_PID, BOF_PID, EAF_PID, FORM_PID, FABR_PID, RECYCLE_PID, \
+from src.base_model.simson_base_model import create_model, ENV_PID, BOF_PID, EAF_PID, FORM_PID, FABR_PID, RECYCLE_PID, \
     USE_PID, SCRAP_PID
 from src.tools.config import cfg
 from src.economic_model.econ_model_tools import get_steel_prices, get_base_scrap_price
@@ -131,19 +131,19 @@ def get_initial_values(interim_model, q_eol):
     r_0_recov = q_0_sest / q_eol
 
     if np.any(q_0_bof <= 0):
-        _raise_error_wrong_values('Initial BOF production')
+        _raise_error_wrong_values('Initial BOF scaler')
 
     if np.any(q_0_eaf <= 0):
-        _raise_error_wrong_values('Initial EAF production')
+        _raise_error_wrong_values('Initial EAF scaler')
 
     if np.any(q_0_st <= 0):
         _raise_error_wrong_values('Initial demand')
     if np.any(q_0_sest <= 0):
-        _raise_error_wrong_values('Initial quantity of secondary steel in production')
+        _raise_error_wrong_values('Initial quantity of secondary steel in scaler')
     if np.any(q_eol <= 0):
         _raise_error_wrong_values('Initial quantity of end of life steel')
     if np.any(s_0_se < 0) or np.any(s_0_se > 1):
-        _raise_error_wrong_values('Initial scrap share in production')
+        _raise_error_wrong_values('Initial scrap share in scaler')
     if np.any(r_0_recov < 0) or np.any(r_0_recov > 1):
         _raise_error_wrong_values('Initial scrap recovery rate')
 
@@ -168,7 +168,7 @@ def _get_a_diss(initial_scrap_share_production):
     a_diss = 1 / (((1 - initial_scrap_share_production) / (1 - cfg.r_free_diss)) **
                   (1 / cfg.elasticity_dissassembly) - 1)
     if np.any(a_diss < 0):
-        _warn_too_high_r_free('scrap share in production')
+        _warn_too_high_r_free('scrap share in scaler')
     return np.maximum(0, a_diss)  # a needs to be positive, rule out cases where r_free > s_0_se
 
 

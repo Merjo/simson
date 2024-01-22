@@ -130,6 +130,9 @@ def split_joint_country_data_for_parameters(df):
     df_new_countries = df_new_countries.drop(columns=['joint_country_name'])
     df_new_countries = df_new_countries.set_index('country')
 
+    # only add new country data if it's not in the df already
+    df_new_countries = df_new_countries[~df_new_countries.index.isin(df.index)]
+
     # delete old country data
     df = df[~df.index.isin(df_split_map['joint_country_name'])]
 

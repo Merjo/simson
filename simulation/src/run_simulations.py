@@ -4,7 +4,7 @@ import pickle
 from datetime import datetime
 from simulation.src.load_excel_dicts import load_excel_dicts
 from simulation.src.load_yaml_dicts import load_yaml_dicts
-from src.model.run_simson import run_simson
+from src.base_model.run_simson import run_simson
 from src.tools.config import cfg
 from src.read_data.load_data import load_region_names_list
 from src.visualisation.test_visualisations.master_visualisation import get_scrap_share_china_plt, get_production_plt

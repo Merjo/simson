@@ -15,7 +15,7 @@ def predict_duerrwaechter(stocks, gdp_data):
     gdp_data_past = gdp_data[:109]  # up until 2009 all scenarios are the same
     if cfg.include_gdp_and_pop_scenarios_in_prediction:
         # gdp data is equal in the past for all 5 scenarios, for calculation of A+b we just need one
-        gdp_data_past = gdp_data_past[:, :, 0]
+        gdp_data_past = gdp_data_past[:, :, 0]  # TODO sth. seems wrong here..
 
     a, b = _calc_global_a_b(stocks, gdp_data_past)
 
@@ -39,7 +39,7 @@ def predict_duerrwaechter(stocks, gdp_data):
     return stocks
 
 
-def _calc_global_a_b(stocks, gdp, visualise=True):
+def _calc_global_a_b(stocks, gdp, visualise=False):
     print(stocks.shape)
     print(gdp.shape)
 

@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 from src.odym_extension.MultiDim_DynamicStockModel import MultiDim_DynamicStockModel
 from src.tools.config import cfg
-from src.model.model_tools import calc_change_timeline
+from src.base_model.model_tools import calc_change_timeline
 from src.predict.calc_steel_stocks import get_np_steel_stocks_with_prediction
 from src.read_data.load_data import load_lifetimes, load_region_names_list
 

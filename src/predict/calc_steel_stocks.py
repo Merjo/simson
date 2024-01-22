@@ -2,6 +2,7 @@ import numpy as np
 from src.predict.pauliuk_prediction import predict_pauliuk
 from src.predict.pehl_prediction import predict_pehl
 from src.predict.duerrwaechter_prediction import predict_duerrwaechter
+from src.predict.lstm_prediction import predict_lstm
 from src.read_data.load_data import load_gdp, load_stocks, load_pop
 from src.tools.config import cfg
 from src.tools.tools import get_np_from_df
@@ -10,20 +11,38 @@ from src.predict.prediction_tools import visualise_stock_results, copy_stocks_ac
 
 def get_np_steel_stocks_with_prediction(country_specific, get_per_capita=False,
                                         include_gdp_and_pop_scenarios=cfg.include_gdp_and_pop_scenarios_in_prediction,
-                                        strategy=cfg.curve_strategy):
+                                        strategy=None,
+                                        stocks=None):
     """
     Calculates In-use steel stock per capita data based on GDP pC using approach given in
     config file (e.g. Pauliuk or Pehl).
     Optionally creates plot to show predict for Germany.
+
+    :param country_specific:
+    :param get_per_capita:
+    :param include_gdp_and_pop_scenarios:
+    :param strategy:
+    :param stocks: The TOTAL (NOT! per capita past stocks)
     :return: Steel data for the years 1900-2100, so BOTH present and past using predict
     approach given in config file.
     """
+    if strategy is None:
+        strategy = cfg.curve_strategy
+    print(f'Curve Strategy: {strategy}')  # TODO delet
     if country_specific:
         raise RuntimeError('Prediction strategy not defined for country_specific level.')
 
     pop = get_np_pop_data(country_specific, include_gdp_and_pop_scenarios)
     gdp = _get_np_gdp_data(country_specific, include_gdp_and_pop_scenarios)
-    stocks = _get_np_old_stocks_data(country_specific)
+
+    if stocks is None:
+        stocks = _get_np_old_stocks_data(country_specific)
+    else:
+        # transfer stocks to per capita stocks
+        past_pop = pop[:109]
+        if include_gdp_and_pop_scenarios:
+            past_pop = past_pop[:, :, 0]  # in the past, all scenarios are the same
+        stocks = np.einsum('trg,tr->trg', stocks, 1 / past_pop)
 
     if strategy == "Pehl":
         stocks = predict_pehl(stocks, gdp)
@@ -31,16 +50,18 @@ def get_np_steel_stocks_with_prediction(country_specific, get_per_capita=False,
         stocks = predict_pauliuk(stocks)
     elif strategy == "Duerrwaechter":
         stocks = predict_duerrwaechter(stocks, gdp)
+    elif strategy == "LSTM":
+        stocks = predict_lstm(stocks, gdp)
     else:
         raise RuntimeError(f"Prediction strategy {strategy} is not defined. "
-                           f"It needs to be either 'Pauliuk', 'Pehl' or 'Duerrwaechter'.")
+                           f"It needs to be either 'Pauliuk', 'Pehl', 'Duerrwaechter' or 'LSTM'.")
 
     if len(stocks.shape) != 4:
         # scenario dimension is missing
         stocks = copy_stocks_across_scenarios(stocks)
 
     if not get_per_capita:
-        stock_dims = 'trcs'
+        stock_dims = 'trgs'
         pop_dims = 'tr'
         if include_gdp_and_pop_scenarios:
             pop_dims += 's'

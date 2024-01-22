@@ -26,8 +26,8 @@ class Config:
         self.start_year = 1900
         self.end_year = 2100
 
-        self.curve_strategy = 'Pauliuk'  # Options: Pauliuk, Pehl, Duerrwaechter
-        self.steel_data_source = 'IEDatabase'  # Options: Mueller, IEDatabase
+        self.curve_strategy = 'Pauliuk'  # Options: Pauliuk, Pehl, Duerrwaechter, LSTM
+        self.steel_data_source = 'Mueller'  # Options: Mueller, IEDatabase
         self.pop_data_source = 'UN'  # Options: UN, KC-Lutz (only for scenarios)
         self.gdp_data_source = 'IMF'  # Options: IMF, Koch-Leimbach (only for scenarios)
         self.trade_data_source = 'WorldSteel'  # Options: WorldSteel
@@ -49,6 +49,12 @@ class Config:
 
         self.exog_eaf_USD98 = 76
         self.default_lifetime_sd_pct_of_mean = 0.3
+
+        self.do_model_approaches = True
+        self.model_type = 'change'
+        # Options: ['change', 'stock', 'inflow']
+        # describing change-, stock- and inflow- based modelling approaches (Type 1, 2 & 3)
+
         # ADAPTABLE PARAMETERS
 
         self.simulation_name = 'SIMSON_Test_1'
@@ -58,8 +64,8 @@ class Config:
         self.scrap_in_BOF_rate = 0.22
         self.forming_yield = 0.937246
 
-        # econ model configurations
-        self.do_model_economy = True
+        # econ base_model configurations
+        self.do_model_economy = False
         self.econ_base_year = 2008
 
         self.elasticity_steel = -0.2

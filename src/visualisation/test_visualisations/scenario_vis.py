@@ -5,8 +5,8 @@ from src.economic_model.simson_econ_model import load_simson_econ_model
 from src.read_data.load_data import load_gdp, load_pop, load_stocks
 from src.tools.tools import get_np_from_df
 from src.predict.calc_steel_stocks import get_np_steel_stocks_with_prediction
-from src.model.load_dsms import load_dsms
-from src.model.model_tools import get_dsm_data
+from src.base_model.load_dsms import load_dsms
+from src.base_model.model_tools import get_dsm_data
 
 
 def _test_dsm_scenarios_vis():

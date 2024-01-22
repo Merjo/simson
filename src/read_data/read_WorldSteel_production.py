@@ -30,6 +30,7 @@ def _read_worldsteel_world_production_1900_1969():
                        nrows=70)
     df = df.set_index('Year')
     df = df.transpose()
+    df *= 1000000  # as data is given in million metric tons
     return df
 
 
