@@ -118,14 +118,16 @@ def get_stock_based_dsms(stocks, start_year, end_year, do_scenarios, lt_mean=Non
     if do_scenarios:  # decide whether to make this a parameter or check via shape dimensiosn
         dsms = [[[_create_stock_based_dsm(scenario_stocks,
                                           years,
-                                          [mean[cat_idx]] if lt_mean is None else lt_mean[:, region_idx, cat_idx],
-                                          [std_dev[cat_idx]] if lt_sd is None else lt_sd[:, region_idx, cat_idx],
+                                          [mean[region_idx, cat_idx]] if lt_mean is None else lt_mean[:, region_idx,
+                                                                                              cat_idx],
+                                          [std_dev[region_idx, cat_idx]] if lt_sd is None else lt_sd[:, region_idx,
+                                                                                               cat_idx],
                                           inflow_change_timeline if do_change_inflow else None)
                   for scenario_idx, scenario_stocks in enumerate(cat_stocks)]
                  for cat_idx, cat_stocks in enumerate(region_stocks)]
                 for region_idx, region_stocks in enumerate(stocks)]
     else:  # do not iterate through scenarios
-        dsms = [[_create_stock_based_dsm(cat_stocks, years, [mean[cat_idx]], [std_dev[cat_idx]],
+        dsms = [[_create_stock_based_dsm(cat_stocks, years, [mean[region_idx, cat_idx]], [std_dev[region_idx, cat_idx]],
                                          inflow_change_timeline if do_change_inflow else None)
                  for cat_idx, cat_stocks in enumerate(region_stocks)]
                 for region_idx, region_stocks in enumerate(stocks)]

@@ -27,7 +27,7 @@ class Config:
         self.end_year = 2100
 
         self.curve_strategy = 'Pauliuk'  # Options: Pauliuk, Pehl, Duerrwaechter, LSTM
-        self.steel_data_source = 'Mueller'  # Options: Mueller, IEDatabase
+        self.steel_data_source = 'Mueller'  # Options: Mueller, IEDatabase, ScrapAge
         self.pop_data_source = 'UN'  # Options: UN, KC-Lutz (only for scenarios)
         self.gdp_data_source = 'IMF'  # Options: IMF, Koch-Leimbach (only for scenarios)
         self.trade_data_source = 'WorldSteel'  # Options: WorldSteel
@@ -37,7 +37,7 @@ class Config:
         self.use_data_source = 'WorldSteel'  # Options: WorldSteel
         self.scrap_trade_data_source = 'WorldSteel'  # Options: WorldSteel
         self.indirect_trade_source = 'WorldSteel'  # Options: WorldSteel
-        self.lifetime_data_source = 'Wittig'  # Options: Wittig, Pauliuk
+        self.lifetime_data_source = 'Pauliuk'  # Options: Wittig, Pauliuk
 
         self.in_use_categories = ['Transport', 'Machinery', 'Construction', 'Products']
         self.recycling_categories = ['CD', 'MSW', 'WEEE', 'ELV', 'IEW', 'INEW', 'Form', 'Fabr', 'Dis', 'NotCol']
@@ -54,6 +54,8 @@ class Config:
         self.model_type = 'change'
         # Options: ['change', 'stock', 'inflow']
         # describing change-, stock- and inflow- based modelling approaches (Type 1, 2 & 3)
+
+        self.n_epochs = 10  # todo delete?
 
         # ADAPTABLE PARAMETERS
 

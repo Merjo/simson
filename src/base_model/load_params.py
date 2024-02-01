@@ -1,5 +1,6 @@
 import os
 import csv
+import numpy as np
 from src.tools.config import cfg
 
 
@@ -9,7 +10,7 @@ def get_cullen_fabrication_yield():
         cullen_reader = csv.reader(csv_file, delimiter=',')
         cullen_list = list(cullen_reader)
         fabrication_yield = [float(line[1]) for line in cullen_list[1:]]
-    return fabrication_yield
+    return np.array(fabrication_yield)
 
 
 def get_wittig_distributions():

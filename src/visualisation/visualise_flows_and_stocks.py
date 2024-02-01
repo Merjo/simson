@@ -9,24 +9,25 @@ from src.predict.calc_steel_stocks import get_np_pop_data
 
 # MAIN PARAMETERS
 
-do_flow_not_stock = True
+do_flow_not_stock = False
 flow_origin_process = FABR_PID
 flow_destination_process = USE_PID
 stock_process = USE_PID
 dimension = 'region'  # Options (depending on flow): 'region', 'scenario', 'good', 'waste'
 
 default_scenario = 'SSP2'  # If dimension is not 'scenario', only data from this scenario is considered.
-default_region = 'EUR'  # If dimension is not 'region', only data from this region is considered.
+default_region = 'JPN'  # If dimension is not 'region', only data from this region is considered.
 # 'World' denotes the entire world data, hence a sum is given for all world regions.
 # Default region must be in region names list of 'region_data_source'.
 
 # SPECIFIC PARAMETERS
 
 do_load_econ_model = False
-region_data_source = 'Pauliuk'  # Options: REMIND, Pauliuk, REMIND_EU
-steel_data_source = 'IEDatabase'  # Options: Mueller, IEDatabase
-curve_strategy = 'Pauliuk'  # Options: Pauliuk, Pehl, Duerrwaechter
-per_capita = False
+region_data_source = 'REMIND'  # Options: REMIND, Pauliuk, REMIND_EU
+steel_data_source = 'Mueller'  # Options: Mueller, IEDatabase
+curve_strategy = 'Duerrwaechter'  # Options: Pauliuk, Pehl, Duerrwaechter
+model_type = 'inflow'  # Options: ['change', 'stock', 'inflow']
+per_capita = True
 ignore_1900 = False
 
 limit_regions = False
@@ -177,6 +178,9 @@ def _get_model_for_visualisation():
         recalculate = True
     if not curve_strategy == cfg.curve_strategy:
         cfg.curve_strategy = curve_strategy
+        recalculate = True
+    if not model_type == cfg.model_type:
+        cfg.model_type = model_type
         recalculate = True
 
     if do_load_econ_model:

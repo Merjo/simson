@@ -5,19 +5,19 @@ from src.tools.tools import transform_per_capita
 from src.tools.split_data_into_subregions import split_areas_by_gdp
 
 
-def get_pauliuk_country_stocks():
-    df = _get_current_pauliuk_stocks(perCapita=True)
+def get_iedb_country_stocks():
+    df = _get_current_iedb_stocks(perCapita=True)
     return df
 
 
 # -- DATA ASSEMBLY FUNCTIONS --
 
 
-def _get_current_pauliuk_stocks(perCapita=False):
-    df_original = _read_pauliuk_categories_original()
-    df = _clean_pauliuk(df_original)
+def _get_current_iedb_stocks(perCapita=False):
+    df_original = _read_iedb_stocks_by_category_original()
+    df = _clean_iedb_stocks(df_original)
     df_iso3_map = _read_pauliuk_iso3_map()
-    df = _reformat_pauliuk(df, df_iso3_map)
+    df = _reformat_iedb_stocks(df, df_iso3_map)
     areas_to_split = ['Belgium-Luxembourg', 'Czechoslovakia', 'Fmr USSR', 'Fmr Yugoslavia',
                       'Netherlands Antilles', 'So. African Customs Union']
     df = split_areas_by_gdp(areas_to_split, df, df_iso3_map, data_is_by_category=True)
@@ -27,7 +27,7 @@ def _get_current_pauliuk_stocks(perCapita=False):
     return df
 
 
-def _reformat_pauliuk(df_original, df_iso3_map):
+def _reformat_iedb_stocks(df_original, df_iso3_map):
     df_original = df_original.pivot(index=['country_name', 'category'], columns='year', values='stock')
     df_original = df_original.reset_index()
     df = pd.merge(df_iso3_map, df_original, on='country_name')
@@ -37,7 +37,7 @@ def _reformat_pauliuk(df_original, df_iso3_map):
     return df
 
 
-def _clean_pauliuk(df_pauliuk):
+def _clean_iedb_stocks(df_pauliuk):
     df_pauliuk = df_pauliuk.rename(columns={'aspect 3 : time': 'year',
                                             'aspect 4 : commodity': 'category_description',
                                             'aspect 5 : region': 'country_name',
@@ -56,7 +56,7 @@ def _clean_pauliuk(df_pauliuk):
     return df_pauliuk
 
 
-def _read_pauliuk_categories_original():
+def _read_iedb_stocks_by_category_original():
     pauliuk_data_path = os.path.join(cfg.data_path, 'original', 'unifreiburg_ie_db',
                                      '2_IUS_steel_200R_4Categories.xlsx')
     df_pauliuk = pd.read_excel(
@@ -68,7 +68,7 @@ def _read_pauliuk_categories_original():
     return df_pauliuk
 
 
-def _read_pauliuk_aggregated_original():
+def _read_iedb_stocks_aggregated_original():
     pauliuk_data_path = os.path.join(cfg.data_path, 'original', 'unifreiburg_ie_db',
                                      '2_IUS_steel_200R.xlsx')
     df_pauliuk = pd.read_excel(

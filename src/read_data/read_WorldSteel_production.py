@@ -50,6 +50,7 @@ def _get_worldsteel_production_original():
 def _test():
     from src.read_data.load_data import load_production
     df = load_production(country_specific=False, production_source='WorldSteel', recalculate=True)
+    df_world = df.sum(axis=0)
     print(df)
 
 

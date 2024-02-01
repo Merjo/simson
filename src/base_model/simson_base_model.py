@@ -60,9 +60,9 @@ def create_model(country_specific, dsms, scrap_share_in_production=None):
     initiate_model(main_model)
 
     # compute stocks and flows
-    compute_flows(main_model, country_specific, inflows, outflows,
-                  max_scrap_share_in_production)
-    compute_stocks(main_model, stocks, inflows, outflows)
+    inflows, outflows = compute_flows(main_model, country_specific, inflows, outflows,
+                                      max_scrap_share_in_production)
+    compute_stocks(main_model, inflows, outflows)
 
     # check base_model
     balance_message = mass_balance_plausible(main_model)
@@ -234,12 +234,6 @@ def compute_flows(model: MFAsystem, country_specific: bool,
         if not cfg.do_model_approaches \
         else compute_upper_cycle_modelling_approaches()
 
-    # todo delete test
-    total_inflow = fabrication_use + indirect_imports - indirect_exports
-    test_inflow = inflows - total_inflow
-    test_inflow2 = test_inflow < 1
-    test_inflow3 = np.all(test_inflow2)
-
     direct_demand = np.sum(fabrication_use, axis=2)
     fabrication_scrap = forming_fabrication - direct_demand
     production_plus_trade = production + imports - exports  # TODO avoid duplicate somehow?
@@ -295,7 +289,7 @@ def compute_flows(model: MFAsystem, country_specific: bool,
                imports, exports, fabrication_use, reuse, fabrication_scrap, use_eol, use_env, scrap_imports,
                scrap_exports, scrap_in_production, waste, indirect_imports, indirect_exports)
 
-    return model
+    return inflows, outflows
 
 
 def compute_upper_cycle_modelling_approaches():
@@ -303,32 +297,6 @@ def compute_upper_cycle_modelling_approaches():
         compute_upper_cycle(model_type=cfg.model_type)
     imports, exports = get_imports_and_exports_from_net_trade(trade)
     indirect_imports, indirect_exports = get_imports_and_exports_from_net_trade(indirect_trade)
-
-    # test 2 todo delete
-    trest = fabrication_use + indirect_trade - inflows
-    trest2 = trest < 1
-    trest3 = np.all(trest2)
-
-    total_inflow = fabrication_use + indirect_imports - indirect_exports
-    test_inflow = inflows - total_inflow
-    test_inflow2 = test_inflow < 1
-    test_inflow3 = np.all(test_inflow2)
-
-    # test TODO delete
-    stock_change = np.zeros_like(stocks)
-    stock_change[0] = stocks[0]
-    stock_change[1:] = stocks[1:] - stocks[:-1]
-    stock_change2 = inflows - outflows
-    test = stock_change - stock_change2
-    test2 = test < 1
-    test3 = np.all(test2)
-    test4 = np.sum(np.abs(test))
-    test5 = test4 < 1
-
-    # todo delete test
-    ttest = fabrication_use + indirect_imports - indirect_exports - outflows - stock_change
-    ttest2 = np.sum(np.abs(ttest))
-    ttest3 = ttest2 < 1
 
     return production, forming_fabrication, imports, exports, fabrication_use, indirect_imports, indirect_exports, \
            inflows, outflows
@@ -412,27 +380,11 @@ def _calc_max_scrap_share(scrap_share_in_production, n_regions):
     return max_scrap_share_in_production
 
 
-def compute_stocks(model, stocks, inflows, outflows):
-    if cfg.do_model_approaches:
-        production, trade, forming_fabrication, fabrication_use, indirect_trade, inflows, stocks, outflows = \
-            compute_upper_cycle(model_type=cfg.model_type)
-
-    # todo: delete test
-    # test TODO delete
-    stock_change = np.zeros_like(stocks)
-    stock_change[0] = stocks[0]
-    stock_change[1:] = stocks[1:] - stocks[:-1]
-    stock_change2 = inflows - outflows
-    test = stock_change - stock_change2
-    test2 = test < 1
-    test3 = np.all(test2)
-    test4 = np.sum(np.abs(test))
-    test5 = test4 < 1
-
-    in_use_stock = model.get_stockV(USE_PID)
+def compute_stocks(model, inflows, outflows):
     in_use_stock_change = model.get_stock_changeV(USE_PID)
-    in_use_stock[:, 0, :, :] = stocks
     in_use_stock_change[:, 0, :, :] = inflows - outflows
+    model.calculate_stock_values_from_stock_change(
+        USE_PID)  # todo decide, does it make sense to not give stocks as paramete?
 
     inflow_waste = model.get_flowV(SCRAP_PID, WASTE_PID)
     model.get_stock_changeV(WASTE_PID)[:] = inflow_waste

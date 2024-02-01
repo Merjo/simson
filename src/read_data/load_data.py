@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import numpy as np
 from src.tools.config import cfg
 from src.tools.tools import read_processed_data, group_country_data_to_regions, transform_per_capita
 
@@ -14,6 +15,8 @@ def load_stocks(stock_source=None, country_specific=False, per_capita=True, reca
         return _load_mueller_stocks(country_specific=country_specific, per_capita=per_capita, recalculate=recalculate)
     elif stock_source == 'IEDatabase':
         return _load_pauliuk_stocks(country_specific=country_specific, per_capita=per_capita, recalculate=recalculate)
+    elif stock_source == 'ScrapAge':
+        return _load_scrap_age_stocks(country_specific=country_specific, per_capita=per_capita, recalculate=recalculate)
     else:
         raise ValueError(f'{stock_source} is not a valid stock data source.')
 
@@ -135,14 +138,24 @@ def load_lifetimes(lifetime_source=None):
         lifetime_source = cfg.lifetime_data_source
     if lifetime_source == 'Wittig':
         lifetime_path = os.path.join(cfg.data_path, 'original', 'Wittig', 'Wittig_lifetimes.csv')
+        df = pd.read_csv(lifetime_path)
+        df = df.set_index('category')
+        df = df.sort_index()
+        mean = df['Mean'].to_numpy()
+        std_dev = df['Standard Deviation'].to_numpy()
+
+        # copy across regions
+        regions = load_region_names_list()
+        n_regions = len(regions)
+        shape = (n_regions, cfg.n_use_categories)
+        mean = np.broadcast_to(np.expand_dims(mean, axis=0), shape)
+        std_dev = np.broadcast_to(np.expand_dims(std_dev, axis=0), shape)
+
     elif lifetime_source == 'Pauliuk':
-        lifetime_path = os.path.join(cfg.data_path, 'original', 'Pauliuk', 'Pauliuk_lifetimes.csv')
+        from src.read_data.read_pauliuk_lifetimes import load_pauliuk_lifetimes
+        mean, std_dev = load_pauliuk_lifetimes()
     else:
         raise ValueError(f'{lifetime_source} is not a valid lifetime data source.')
-    df = pd.read_csv(lifetime_path)
-    df = df.set_index('category')
-    mean = df['Mean'].to_numpy()
-    std_dev = df['Standard Deviation'].to_numpy()
     return mean, std_dev
 
 
@@ -248,9 +261,22 @@ def _load_mueller_stocks(country_specific, per_capita, recalculate):
 
 
 def _load_pauliuk_stocks(country_specific, per_capita, recalculate):
-    from src.read_data.read_pauliuk_stocks import get_pauliuk_country_stocks
+    from src.read_data.read_iedb_stocks import get_iedb_country_stocks
     df = _data_loader(file_base_name='pauliuk_stocks',
-                      recalculate_function=get_pauliuk_country_stocks,
+                      recalculate_function=get_iedb_country_stocks,
+                      country_specific=country_specific,
+                      data_stored_per_capita=True,
+                      return_per_capita=per_capita,
+                      data_split_into_categories=True,
+                      recalculate=recalculate)
+    return df
+
+
+def _load_scrap_age_stocks(country_specific, per_capita, recalculate):
+    from src.read_data.read_scrap_age_stocks import get_scrap_age_stocks
+    # TODO implement future / past parameter?
+    df = _data_loader(file_base_name='scrap_age_stocks',
+                      recalculate_function=get_scrap_age_stocks,
                       country_specific=country_specific,
                       data_stored_per_capita=True,
                       return_per_capita=per_capita,

@@ -28,7 +28,7 @@ def get_np_steel_stocks_with_prediction(country_specific, get_per_capita=False,
     """
     if strategy is None:
         strategy = cfg.curve_strategy
-    print(f'Curve Strategy: {strategy}')  # TODO delet
+    print(f'Curve Strategy: {strategy}')  # TODO delete
     if country_specific:
         raise RuntimeError('Prediction strategy not defined for country_specific level.')
 
@@ -51,7 +51,7 @@ def get_np_steel_stocks_with_prediction(country_specific, get_per_capita=False,
     elif strategy == "Duerrwaechter":
         stocks = predict_duerrwaechter(stocks, gdp)
     elif strategy == "LSTM":
-        stocks = predict_lstm(stocks, gdp)
+        stocks = predict_lstm(stocks, gdp, pop)
     else:
         raise RuntimeError(f"Prediction strategy {strategy} is not defined. "
                            f"It needs to be either 'Pauliuk', 'Pehl', 'Duerrwaechter' or 'LSTM'.")

@@ -31,7 +31,7 @@ def _get_dsms(country_specific):
         inflow_change_timeline = calc_change_timeline(cfg.inflow_change_factor, cfg.inflow_change_base_year)
 
     dsms = [[[_create_dsm(stocks_data[:, area_idx, cat_idx, scenario_idx],
-                          mean[cat_idx], std_dev[cat_idx],
+                          mean[area_idx, cat_idx], std_dev[area_idx, cat_idx],
                           inflow_change_timeline[:, cat_idx, scenario_idx] if cfg.do_change_inflow else None)
               for scenario_idx in range(cfg.n_scenarios)]
              for cat_idx in range(cfg.n_use_categories)]

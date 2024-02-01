@@ -29,10 +29,4 @@ def get_past_stocks(country_specific):  # TODO put all data load function into d
     stocks = get_np_from_df(df_stocks, data_split_into_categories=True)
     stocks = np.moveaxis(stocks, -1, 0)  # move time axis to first position for 'trg' format
 
-    # Teest # TODO: Delete
-    stocks2008 = stocks[-1]
-    stocks2007 = stocks[-2]
-    sc = stocks2008 - stocks2007
-    test = np.sum(sc)
-
     return stocks

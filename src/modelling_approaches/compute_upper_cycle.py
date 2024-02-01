@@ -57,9 +57,9 @@ def compute_upper_cycle(model_type=cfg.model_type, country_specific=False):  # d
     production = production_plus_trade - trade
 
     # TODO: decide if below is necessary
-    fabrication_use[:109] = past_fabrication_use
-    forming_fabrication[:109] = past_forming_fabrication
-    production[:109] = past_production
+    # fabrication_use[:109] = past_fabrication_use
+    # forming_fabrication[:109] = past_forming_fabrication
+    # production[:109] = past_production
 
     return production, trade, forming_fabrication, fabrication_use, indirect_trade, inflows, stocks, outflows
 

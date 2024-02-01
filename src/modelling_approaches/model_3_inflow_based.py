@@ -2,7 +2,7 @@ from math import sqrt, pi, e
 import numpy as np
 from src.modelling_approaches.load_model_dsms import load_model_dsms, get_dsm_data
 from src.odym_extension.MultiDim_DynamicStockModel import MultiDim_DynamicStockModel
-from src.read_data.load_data import load_lifetimes
+from src.read_data.load_data import load_lifetimes, load_region_names_list
 from src.modelling_approaches.load_data_for_approaches import get_past_production_trade_forming_fabrication
 from src.base_model.load_params import get_cullen_fabrication_yield
 from src.modelling_approaches.calc_region_sector_splits import get_region_sector_splits
@@ -28,7 +28,7 @@ def get_inflow_based_model_upper_cycle(country_specific=False):
 
 def calc_inflows_via_sector_splits(fabrication, indirect_trade, fabrication_yield, sector_splits, mean, std_dev):
     lifetime_matrix = _calc_lifetime_matrix(mean, std_dev)
-    l = np.einsum('trd,tug->turgd', sector_splits, 1 - lifetime_matrix)  # here 'u' denotes t_dash / t'
+    l = np.einsum('trd,turg->turgd', sector_splits, 1 - lifetime_matrix)  # here 'u' denotes t_dash / t'
     d_0_dividend = l[0, 0]
     d_0 = np.einsum('rgd,rdg->rgd', d_0_dividend, 1 / d_0_dividend)
     initial_indirect_trade = np.repeat(np.expand_dims(indirect_trade[0], axis=2), cfg.n_use_categories, axis=2)
@@ -50,20 +50,20 @@ def calc_inflows_via_sector_splits(fabrication, indirect_trade, fabrication_yiel
 
     for t in range(1, 109):
         f = fabrication[t]
-        s_prepare = np.einsum('trg,tg->trg', inflows[:t], lifetime_matrix[t, :t])
+        s_prepare = np.einsum('trg,trg->trg', inflows[:t], lifetime_matrix[t, :t])
         s_prepare = np.sum(s_prepare, axis=0)
         c = sector_splits[t]
         it = indirect_trade[t]
         lt = lifetime_matrix[t, t]
         y = fabrication_yield
 
-        m_1 = f * y[0] * (1 - lt[0])
+        m_1 = f * y[0] * (1 - lt[:, 0])
         m_2 = np.einsum('r,rg->rg', m_1, c)
         m_3 = np.einsum('rg,r->rg', m_2, 1 / c[:, 0])
-        m_4 = np.einsum('g,r,g->rg', (1 - lt), f, y)
+        m_4 = np.einsum('rg,r,g->rg', (1 - lt), f, y)
         m = m_3 / m_4
 
-        b_1 = (it[:, 0] * (1 - lt[0]) - s_prepare[:, 0]) / c[:, 0]
+        b_1 = (it[:, 0] * (1 - lt[:, 0]) - s_prepare[:, 0]) / c[:, 0]
         b_2 = np.einsum('r,rg->rg', b_1, c)
         b_3 = b_2 + s_prepare
         b_4 = m_4
@@ -104,14 +104,16 @@ def _calc_lifetime_matrix(mean, std_dev):
     t = np.arange(0, 109)
     t_dash = np.arange(0, 109)
     t_matrix = np.subtract.outer(t, t_dash)
-    new_t_matrix_shape = t_matrix.shape + (cfg.n_use_categories,)
-    t_matrix = np.broadcast_to(np.expand_dims(t_matrix, axis=2), new_t_matrix_shape)
+    regions = load_region_names_list()
+    n_regions = len(regions)
+    new_t_matrix_shape = t_matrix.shape + (n_regions, cfg.n_use_categories)
+    t_matrix = np.broadcast_to(np.expand_dims(t_matrix, axis=(2, 3)), new_t_matrix_shape)
     exponent = -(t_matrix - mean) ** 2 / (2 * std_dev ** 2)
     lifetime_matrix = 1 / (sqrt(2) * pi * std_dev) * e ** exponent
 
     # only use lower triangle of lifetime matrix as 'past' lifetimes of inflows are irrelevant
     tri = np.tri(*lifetime_matrix.shape[:2])
-    lifetime_matrix = np.einsum('tug,tu->tug', lifetime_matrix, tri)
+    lifetime_matrix = np.einsum('turg,tu->turg', lifetime_matrix, tri)
 
     return lifetime_matrix
 
@@ -129,7 +131,7 @@ def get_inflow_based_past_dsms(country_specific, fabrication=None, indirect_trad
 
     inflows = np.moveaxis(inflows, 0, 2)  # move time axis to the end to iterate more easily through inflows
     years = np.arange(1900, 2009)  # TODO: Change all numbers
-    dsms = [[_create_inflow_based_past_dsm(cat_inflows, years, mean[cat_idx], std_dev[cat_idx])
+    dsms = [[_create_inflow_based_past_dsm(cat_inflows, years, mean[region_idx, cat_idx], std_dev[region_idx, cat_idx])
              for cat_idx, cat_inflows in enumerate(region_inflows)]
             for region_idx, region_inflows in enumerate(inflows)]
 

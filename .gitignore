@@ -1,6 +1,6 @@
 data/output/*.png
 src/*/__pycache__
-data/models/*.p
+data/models/*
 data/processed/*.csv
 data/original/*
 src/visualisation/test_visualisations/*

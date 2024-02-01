@@ -74,3 +74,14 @@ rnn_rain.fit(flow_train,
 
 eval_model(rnn_rain,
            future_covariates=rainfalls)
+
+prediction = rnn_rain.predict(n=3,
+                              series=flow_train,
+                              future_covariates=rainfalls)
+flow_vals = flow_train.values()
+values = prediction.values()
+
+plt.plot(np.arange(874), np.concatenate([flow_vals[:, 0], values[:, 0]], axis=0))
+plt.show()
+
+a = 0

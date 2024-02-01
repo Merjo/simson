@@ -1,5 +1,5 @@
 from src.read_data.read_mueller_stocks import load_mueller_stocks
-from src.read_data.read_pauliuk_stocks import load_pauliuk_stocks
+from src.read_data.read_iedb_stocks import load_pauliuk_stocks
 from src.tools.tools import get_steel_category_total
 import matplotlib.pyplot as plt
 import numpy as np
@@ -19,12 +19,13 @@ REGION_COLORS = {'LAM': 'green',
                  'USA': 'cyan',
                  'World': 'blue'}
 
+
 def make_stocks_fig(df: pd.DataFrame):
     plt.figure()
     for index, row in df.iterrows():
         region = index
         data = np.array(row[50:109])
-        plt.scatter(range(1950,2009), data, color = REGION_COLORS[region], label=region)
+        plt.scatter(range(1950, 2009), data, color=REGION_COLORS[region], label=region)
     plt.xlabel('Time in years')
     plt.ylabel("Steel stock pC (t)")
     plt.title('Steel stock pc over time Pauliuk data')
@@ -42,5 +43,5 @@ def main():
     visualize_mueller_stocks_regions()
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     main()
