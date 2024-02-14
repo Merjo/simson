@@ -28,7 +28,7 @@ def get_np_steel_stocks_with_prediction(country_specific, get_per_capita=False,
     """
     if strategy is None:
         strategy = cfg.curve_strategy
-    print(f'Curve Strategy: {strategy}')  # TODO delete
+    print(f'Curve Strategy: {strategy}')
     if country_specific:
         raise RuntimeError('Prediction strategy not defined for country_specific level.')
 
@@ -88,7 +88,8 @@ def get_np_pop_data(country_specific, include_gdp_and_pop_scenarios):
 
 def _get_np_gdp_data(country_specific, include_gdp_and_pop_scenarios, per_capita=True):
     gdp_source = 'Koch-Leimbach' if include_gdp_and_pop_scenarios else cfg.gdp_data_source
-    df_gdp = load_gdp(gdp_source=gdp_source, country_specific=country_specific, per_capita=per_capita)
+    df_gdp = load_gdp(gdp_source=gdp_source, country_specific=country_specific, per_capita=per_capita,
+                      get_scenarios=include_gdp_and_pop_scenarios)
     gdp = df_gdp.to_numpy()
     gdp = gdp.transpose()
 
@@ -109,7 +110,13 @@ def test(strategy=cfg.curve_strategy, do_visualize=True):
     Optionally creates plot to show predict for Germany.
     :return:
     """
-    stocks = get_np_steel_stocks_with_prediction(country_specific=False, get_per_capita=True, strategy=strategy)
+    from src.modelling_approaches.load_model_dsms import load_model_dsms, get_dsm_data
+    old_dsm = load_model_dsms(country_specific=False, do_past_not_future=True, model_type=cfg.model_type,
+                              do_econ_model=False, recalculate=False)
+    old_inflows, old_stocks, old_outflows = get_dsm_data(old_dsm)
+
+    stocks = get_np_steel_stocks_with_prediction(country_specific=False, get_per_capita=True, strategy=strategy,
+                                                 stocks=old_stocks)
     print(f'Predicted stocks shape: {stocks.shape}')
     if do_visualize:
         visualise_stock_results(stocks, curve_strategy=strategy)

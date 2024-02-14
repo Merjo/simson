@@ -55,16 +55,16 @@ def _get_dsms(country_specific, do_past_not_future, model_type, do_econ_model, f
               indirect_trade=None):
     if do_past_not_future:
         if model_type == 'stock':
-            from src.modelling_approaches.model_2_stock_based import get_stock_based_past_dsms
-            dsms = get_stock_based_past_dsms(country_specific)
+            from src.modelling_approaches.model_2_stock_driven import get_stock_driven_past_dsms
+            dsms = get_stock_driven_past_dsms(country_specific)
             return dsms
         elif model_type == 'inflow':
-            from src.modelling_approaches.model_3_inflow_based import get_inflow_based_past_dsms
-            dsms = get_inflow_based_past_dsms(country_specific, forming_fabrication, indirect_trade)
+            from src.modelling_approaches.model_1_inflow_driven import get_inflow_driven_past_dsms
+            dsms = get_inflow_driven_past_dsms(country_specific, forming_fabrication, indirect_trade)
             return dsms
         elif model_type == 'change':
-            from src.modelling_approaches.model_1_change_based import get_change_based_past_dsms
-            dsms = get_change_based_past_dsms(country_specific, forming_fabrication, indirect_trade)
+            from src.modelling_approaches.model_3_change_driven import get_change_driven_past_dsms
+            dsms = get_change_driven_past_dsms(country_specific, forming_fabrication, indirect_trade)
             return dsms
         else:
             raise RuntimeError()  # TODO change

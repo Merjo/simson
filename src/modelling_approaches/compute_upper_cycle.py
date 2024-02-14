@@ -1,8 +1,8 @@
 import numpy as np
 from src.tools.config import cfg
-from src.modelling_approaches.model_1_change_based import get_change_based_model_upper_cycle
-from src.modelling_approaches.model_2_stock_based import get_stock_based_model_upper_cycle
-from src.modelling_approaches.model_3_inflow_based import get_inflow_based_model_upper_cycle
+from src.modelling_approaches.model_3_change_driven import get_change_driven_model_upper_cycle
+from src.modelling_approaches.model_2_stock_driven import get_stock_driven_model_upper_cycle
+from src.modelling_approaches.model_1_inflow_driven import get_inflow_driven_model_upper_cycle
 from src.modelling_approaches.load_model_dsms import load_model_dsms, get_dsm_data
 from src.calc_trade.calc_trade_tools import scale_trade
 from src.base_model.load_params import get_cullen_fabrication_yield
@@ -12,11 +12,11 @@ def compute_upper_cycle(model_type=cfg.model_type, country_specific=False):  # d
     # TODO: include REUSE ???
 
     if model_type == 'change':
-        get_upper_cycle_function = get_change_based_model_upper_cycle
+        get_upper_cycle_function = get_change_driven_model_upper_cycle
     elif model_type == 'stock':
-        get_upper_cycle_function = get_stock_based_model_upper_cycle
+        get_upper_cycle_function = get_stock_driven_model_upper_cycle
     elif model_type == 'inflow':
-        get_upper_cycle_function = get_inflow_based_model_upper_cycle
+        get_upper_cycle_function = get_inflow_driven_model_upper_cycle
     past_production, past_trade, past_forming_fabrication, past_fabrication_use, past_indirect_trade, past_inflows, \
     past_stocks, past_outflows = \
         get_upper_cycle_function(country_specific=country_specific)

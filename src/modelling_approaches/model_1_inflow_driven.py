@@ -5,11 +5,11 @@ from src.odym_extension.MultiDim_DynamicStockModel import MultiDim_DynamicStockM
 from src.read_data.load_data import load_lifetimes, load_region_names_list
 from src.modelling_approaches.load_data_for_approaches import get_past_production_trade_forming_fabrication
 from src.base_model.load_params import get_cullen_fabrication_yield
-from src.modelling_approaches.calc_region_sector_splits import get_region_sector_splits
+from src.modelling_approaches.load_region_sector_splits import get_region_sector_splits
 from src.tools.config import cfg
 
 
-def get_inflow_based_model_upper_cycle(country_specific=False):
+def get_inflow_driven_model_upper_cycle(country_specific=False):
     production, trade, forming_fabrication, indirect_trade = \
         get_past_production_trade_forming_fabrication(country_specific)
 
@@ -26,7 +26,27 @@ def get_inflow_based_model_upper_cycle(country_specific=False):
     return production, trade, forming_fabrication, fabrication_use, indirect_trade, inflows, stocks, outflows
 
 
-def calc_inflows_via_sector_splits(fabrication, indirect_trade, fabrication_yield, sector_splits, mean, std_dev):
+def get_inflow_driven_past_dsms(country_specific, fabrication=None, indirect_trade=None):
+    if fabrication is None or indirect_trade is None:
+        production, trade, forming_fabrication, indirect_trade = \
+            get_past_production_trade_forming_fabrication(country_specific)
+        fabrication = forming_fabrication
+    fabrication_yield = np.array(get_cullen_fabrication_yield())
+    sector_splits = get_region_sector_splits()[:109]  # TODO: country?
+    mean, std_dev = load_lifetimes()
+    inflows = _calc_inflows_via_sector_splits(fabrication, indirect_trade, fabrication_yield, sector_splits,
+                                              mean, std_dev)
+
+    inflows = np.moveaxis(inflows, 0, 2)  # move time axis to the end to iterate more easily through inflows
+    years = np.arange(1900, 2009)  # TODO: Change all numbers
+    dsms = [[_create_inflow_driven_past_dsm(cat_inflows, years, mean[region_idx, cat_idx], std_dev[region_idx, cat_idx])
+             for cat_idx, cat_inflows in enumerate(region_inflows)]
+            for region_idx, region_inflows in enumerate(inflows)]
+
+    return dsms
+
+
+def _calc_inflows_via_sector_splits(fabrication, indirect_trade, fabrication_yield, sector_splits, mean, std_dev):
     lifetime_matrix = _calc_lifetime_matrix(mean, std_dev)
     l = np.einsum('trd,turg->turgd', sector_splits, 1 - lifetime_matrix)  # here 'u' denotes t_dash / t'
     d_0_dividend = l[0, 0]
@@ -118,27 +138,7 @@ def _calc_lifetime_matrix(mean, std_dev):
     return lifetime_matrix
 
 
-def get_inflow_based_past_dsms(country_specific, fabrication=None, indirect_trade=None):
-    if fabrication is None or indirect_trade is None:
-        production, trade, forming_fabrication, indirect_trade = \
-            get_past_production_trade_forming_fabrication(country_specific)
-        fabrication = forming_fabrication
-    fabrication_yield = np.array(get_cullen_fabrication_yield())
-    sector_splits = get_region_sector_splits()[:109]  # TODO: country?
-    mean, std_dev = load_lifetimes()
-    inflows = calc_inflows_via_sector_splits(fabrication, indirect_trade, fabrication_yield, sector_splits,
-                                             mean, std_dev)
-
-    inflows = np.moveaxis(inflows, 0, 2)  # move time axis to the end to iterate more easily through inflows
-    years = np.arange(1900, 2009)  # TODO: Change all numbers
-    dsms = [[_create_inflow_based_past_dsm(cat_inflows, years, mean[region_idx, cat_idx], std_dev[region_idx, cat_idx])
-             for cat_idx, cat_inflows in enumerate(region_inflows)]
-            for region_idx, region_inflows in enumerate(inflows)]
-
-    return dsms
-
-
-def _create_inflow_based_past_dsm(inflows, years, lifetime_mean, lifetime_sd):
+def _create_inflow_driven_past_dsm(inflows, years, lifetime_mean, lifetime_sd):
     steel_stock_dsm = MultiDim_DynamicStockModel(t=years,
                                                  i=inflows,
                                                  lt={'Type': 'Normal', 'Mean': [lifetime_mean],

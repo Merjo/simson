@@ -7,7 +7,7 @@ from src.base_model.load_params import get_cullen_fabrication_yield
 from src.tools.config import cfg
 
 
-def get_stock_based_model_upper_cycle(country_specific=False):
+def get_stock_driven_model_upper_cycle(country_specific=False):
     past_dsms = load_model_dsms(country_specific=country_specific,
                                 do_past_not_future=True,
                                 model_type='stock',
@@ -27,7 +27,7 @@ def get_stock_based_model_upper_cycle(country_specific=False):
     return production, trade, forming_fabrication, fabrication_use, indirect_trade, inflows, stocks, outflows
 
 
-def get_stock_based_past_dsms(country_specific):
+def get_stock_driven_past_dsms(country_specific):
     stocks = get_past_stocks(country_specific=country_specific)
     dsms = get_stock_based_dsms(stocks, 1900, 2008, do_scenarios=False)
     return dsms

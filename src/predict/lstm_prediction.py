@@ -6,26 +6,34 @@ from src.predict.prediction_tools import split_future_stocks_to_base_year_catego
     copy_stocks_across_scenarios
 from src.read_data.load_data import load_region_names_list
 from src.tools.config import cfg
-from darts.metrics import rmse, mape
+from darts.metrics import mape
 from darts.models import RNNModel
 from darts import TimeSeries
 from matplotlib import pyplot as plt
 import os
 import datetime
 
+do_stock_change = False
+do_normalize_stocks = True
+do_total_not_per_capita = False
+do_use_population = False
+n_epochs = 700
+do_show_plot = False
+do_create_new_model = True
+input_chunk_length = 95  # 109-14 time steps for future
+output_chunk_length = 14  # or 92 ?
+n_rnn_layers = 8
+
+cfg.n_epochs = n_epochs
+cfg.n_rnn_layers = n_rnn_layers
+
 
 def predict_lstm(stocks, gdp, pop, include_scenarios=False):  # todo change include scenarios to cfg.include_gdp...
-    print(stocks.shape)
-    print(gdp.shape)
-
     gdp = gdp[:, :, 1]  # only use SSP2 TODO change
     pop = pop[:, :, 1]
 
     past_stocks_by_category = stocks.copy()  # TODO dis dubble?
     stocks = np.sum(stocks, axis=2)
-
-    gdp_data_future = gdp[109:]
-    gdp_data_past = gdp[:109]  # up until 2009 all scenarios are the same
 
     future_stocks = _lstm_stock_curve(stocks, gdp, pop, do_create_new_model=do_create_new_model)
     if include_scenarios:
@@ -43,7 +51,7 @@ def predict_lstm(stocks, gdp, pop, include_scenarios=False):  # todo change incl
 
 def _lstm_stock_curve(stocks, gdp, pop, do_create_new_model):
     if not do_create_new_model:
-        model, mape = _load_model()
+        model, model_mape = _load_model()
         if model is None:
             do_create_new_model = True
     if do_total_not_per_capita:
@@ -98,7 +106,11 @@ def _lstm_stock_curve(stocks, gdp, pop, do_create_new_model):
 
     ts_covariates = ts_pop_and_gdp_list if do_use_population else ts_gdp_list
     if do_create_new_model:
-        model, mape = _create_new_model(ts_stocks_list, ts_covariates)
+        ts_stocks_list_without_ref = ts_stocks_list[:9] + ts_stocks_list[9 + 1:]
+        ts_covariates_without_ref = ts_covariates[:9] + ts_covariates[9 + 1:]
+        model, model_mape = _create_new_model(
+            ts_stocks_list_without_ref if cfg.model_type == 'inflow' else ts_stocks_list,
+            ts_covariates_without_ref if cfg.model_type == 'inflow' else ts_covariates)
 
     prediction = model.predict(n=92,
                                series=ts_stocks_list,
@@ -123,8 +135,8 @@ def _lstm_stock_curve(stocks, gdp, pop, do_create_new_model):
         # orig_stocks = np.einsum('tr,tr->tr', orig_stocks, 1 / pop) # todo uncomment?
         # gdp = np.einsum('tr,tr->tr', gdp, pop, 1 / pop)
     timestamp = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
-    f_name = f'{mape:.2f}%_{timestamp}_{cfg.steel_data_source}_{cfg.region_data_source}_' \
-             f'{cfg.n_epochs}_{n_rnn_layers}_{input_chunk_length}_{output_chunk_length}'
+    f_name = f'{model_mape:.2f}%_{timestamp}_{cfg.steel_data_source}_{cfg.region_data_source}_' \
+             f'{cfg.model_type}_{cfg.n_epochs}_{cfg.n_rnn_layers}_{cfg.hidden_dim}_{input_chunk_length}_{output_chunk_length}'
     base_path = os.path.join(cfg.data_path, 'models', 'lstm_models')
     pic_path = os.path.join(base_path, f'{f_name}.png')
     model_path = os.path.join(base_path, f'{f_name}.pt')
@@ -137,14 +149,14 @@ def _lstm_stock_curve(stocks, gdp, pop, do_create_new_model):
         plt.xlabel('Time (y)')
         plt.ylabel('Steel (t)')
         plt.title('Steel stocks per capita with normal and smoothed (--) predictions \n'
-                  f'{cfg.region_data_source}_{cfg.steel_data_source}_{cfg.n_epochs}')
+                  f'{cfg.region_data_source}_{cfg.steel_data_source}_{cfg.model_type}_{cfg.n_epochs}_{cfg.n_rnn_layers}_{cfg.hidden_dim}')
     if do_create_new_model:
         model.save(model_path)
-        plt.savefig(pic_path, dpi=200)
+        plt.savefig(pic_path, dpi=300)
     if do_show_plot:
         plt.show()
-    # plt.clf()  # clear figure if doing several tests #todo implement that it works this file and first_matrix_test
-    return smoothed_stocks[109:]  # todo decide this (basically orig_stocks) vs smoothed version
+    plt.clf()  # clear figure if doing several tests #todo implement that it works this file and first_matrix_test
+    return orig_stocks[109:]  # smoothed_stocks[109:]  # todo decide this (basically orig_stocks) vs smoothed version
 
 
 def _load_model():
@@ -152,32 +164,36 @@ def _load_model():
     files = os.listdir(base_path)
     models = [file.split('_') for file in files if file.endswith('.pt')]
     models = [model for model in models if
-              model[3] == cfg.steel_data_source and model[4] == cfg.region_data_source and float(model[0][:-1]) < 10]
-    # model needs to match desired steel and region data source and have an accuracy of at least 10 % -> TODO decide?
+              model[3] == cfg.steel_data_source and model[4] == cfg.region_data_source and model[
+                  5] == cfg.model_type and float(model[0][:-1]) < 10]
+    # model needs to match desired steel and region data source and model type and have an accuracy of at least 10 %
 
     if len(models) == 0:
         return None, None
     models = ['_'.join(model) for model in models]
     final = min(models)
     final_path = os.path.join(base_path, final)
-    mape = float(final.split('%')[0])
+    print(final_path)
+    model_mape = float(final.split('%')[0])
     model = RNNModel.load(final_path)
-    return model, mape
+    return model, model_mape
 
 
 def _create_new_model(ts_stocks_list, ts_covariates):
+    print(
+        f'Creating new model with {cfg.n_rnn_layers} rnn layers, {cfg.hidden_dim} hidden dim size and {cfg.n_epochs} epochs.')
     model = RNNModel(model='LSTM',
                      input_chunk_length=input_chunk_length,
                      output_chunk_length=output_chunk_length,
-                     n_rnn_layers=n_rnn_layers)
+                     n_rnn_layers=cfg.n_rnn_layers)
     model.fit(ts_stocks_list,
               future_covariates=ts_covariates,
               epochs=cfg.n_epochs,
               verbose=True)
-    mape = eval_model(model, ts_stocks_list,
-                      future_covariates=ts_covariates)
+    model_mape = eval_model(model, ts_stocks_list,
+                            future_covariates=ts_covariates)
 
-    return model, mape
+    return model, model_mape
 
 
 def _smooth_stocks(stocks, predicted):
@@ -226,7 +242,7 @@ def eval_model(model, stocks, past_covariates=None, future_covariates=None):
                                           past_covariates=past_covariates,
                                           future_covariates=future_covariates,
                                           start=95,
-                                          # TODO delete comment?should denote 2008 ((2008-1900)/(2100-1900)=0.54)
+                                          # TODO 2008-(2022-2009)=1995))
                                           retrain=False,
                                           verbose=True)
 
@@ -245,28 +261,24 @@ if __name__ == '__main__':
     if normal:
         test(strategy='LSTM', do_visualize=True)
     else:
-        region_tests = ['REMIND', 'Pauliuk']
-        data_tests = ['Mueller', 'IEDatabase', 'ScrapAge']
+        region_tests = ['REMIND']  # Options: ['Pauliuk', 'REMIND']
+        data_tests = ['IEDatabase']  # Options: ['Mueller', 'IEDatabase', 'ScrapAge']
         # TODO decide: does it make sense to make specific models for different approaches
-        n_epochen = [10, 100, 1000]
+        model_types = ['stock', 'inflow', 'change']
+        n_epochen = [1000]
+        n_rnn_layers = [3, 6, 9, 12]
+        hidden_dims = [5, 15, 25, 35]
         for region in region_tests:
             cfg.region_data_source = region
             for data_set in data_tests:
                 cfg.steel_data_source = data_set
-                for n_epoch in n_epochen:
-                    cfg.n_epochs = n_epoch
-                    print(f'\n\nTest {region} {data_set} {n_epoch}\n\n')
-                    test(strategy='LSTM', do_visualize=False)
-
-do_stock_change = False
-do_normalize_stocks = True
-do_total_not_per_capita = False
-do_use_population = False
-n_epochs = 1
-do_show_plot = False
-do_create_new_model = False
-input_chunk_length = 95  # 109-14 time steps for future
-output_chunk_length = 14  # or 92 ?
-n_rnn_layers = 8
-
-cfg.n_epochs = n_epochs
+                for model_type in model_types:
+                    cfg.model_type = model_type
+                    for n_epoch in n_epochen:
+                        cfg.n_epochs = n_epoch
+                        for n_rnn in n_rnn_layers:
+                            cfg.n_rnn_layers = n_rnn
+                            for hidden_dim in hidden_dims:
+                                cfg.hidden_dim = hidden_dim
+                                print(f'\n\nTest {region} {data_set} {model_type} {n_epoch} {n_rnn} {hidden_dim}\n\n')
+                                test(strategy='LSTM', do_visualize=False)

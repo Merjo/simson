@@ -8,7 +8,7 @@ from src.odym_extension.MultiDim_DynamicStockModel import MultiDim_DynamicStockM
 from src.read_data.load_data import load_lifetimes
 
 
-def get_change_based_model_upper_cycle(country_specific=False):  # TODO same as model 3 -> make more efficient?
+def get_change_driven_model_upper_cycle(country_specific=False):  # TODO same as model 3 -> make more efficient?
     production, trade, forming_fabrication, indirect_trade = \
         get_past_production_trade_forming_fabrication(country_specific)
 
@@ -32,7 +32,7 @@ def _calc_stock_change(stocks):
     return stock_change
 
 
-def get_change_based_past_dsms(country_specific, fabrication=None, indirect_trade=None):
+def get_change_driven_past_dsms(country_specific, fabrication=None, indirect_trade=None):
     if fabrication is None or indirect_trade is None:
         production, trade, forming_fabrication, indirect_trade = \
             get_past_production_trade_forming_fabrication(country_specific)
@@ -85,11 +85,11 @@ def get_change_based_past_dsms(country_specific, fabrication=None, indirect_trad
     inflows = np.moveaxis(inflows, 0, 2)  # move time axis to the end to iterate more easily through inflows
 
     years = np.arange(1900, 2009)  # TODO: Change all numbers
-    dsms = [[_create_inflow_based_past_dsm(cat_inflows,
-                                           stocks[:, region_idx, cat_idx],
-                                           outflows[:, region_idx, cat_idx],
-                                           mean[:, region_idx, cat_idx],
-                                           years)
+    dsms = [[_create_change_driven_past_dsm(cat_inflows,
+                                            stocks[:, region_idx, cat_idx],
+                                            outflows[:, region_idx, cat_idx],
+                                            mean[:, region_idx, cat_idx],
+                                            years)
              for cat_idx, cat_inflows in enumerate(region_inflows)]
             for region_idx, region_inflows in enumerate(inflows)]
 
@@ -164,7 +164,7 @@ def _update_lambda_matrix(lambda_matrix, mean_t, t):
     lambda_matrix[t:, t] = new_lambdas
 
 
-def _create_inflow_based_past_dsm(inflows, stocks, outflows, lifetime_mean, years):
+def _create_change_driven_past_dsm(inflows, stocks, outflows, lifetime_mean, years):
     steel_stock_dsm = MultiDim_DynamicStockModel(t=years,
                                                  i=inflows,
                                                  s=stocks,

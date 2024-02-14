@@ -14,7 +14,7 @@ def load_stocks(stock_source=None, country_specific=False, per_capita=True, reca
     if stock_source == 'Mueller':
         return _load_mueller_stocks(country_specific=country_specific, per_capita=per_capita, recalculate=recalculate)
     elif stock_source == 'IEDatabase':
-        return _load_pauliuk_stocks(country_specific=country_specific, per_capita=per_capita, recalculate=recalculate)
+        return _load_iedb_stocks(country_specific=country_specific, per_capita=per_capita, recalculate=recalculate)
     elif stock_source == 'ScrapAge':
         return _load_scrap_age_stocks(country_specific=country_specific, per_capita=per_capita, recalculate=recalculate)
     else:
@@ -32,15 +32,22 @@ def load_pop(pop_source=None, country_specific=False, recalculate=False):
         raise ValueError(f'{pop_source} is not a valid population data source.')
 
 
-def load_gdp(gdp_source=None, country_specific=False, per_capita=True, recalculate=False):
+def load_gdp(gdp_source=None, country_specific=False, per_capita=True, recalculate=False, get_scenarios=False):
     if gdp_source is None:
         gdp_source = cfg.gdp_data_source
+
+    if get_scenarios and not gdp_source == 'Koch-Leimbach':
+        raise RuntimeError('GDP scenario data only available for GDP data source Koch-Leimbach.')
+
     if gdp_source == 'IMF':
         return _load_imf_gdp(country_specific=country_specific, per_capita=per_capita, recalculate=recalculate)
     elif gdp_source == 'Koch-Leimbach':
-        return _load_koch_leimbach_gdp(country_specific=country_specific,
-                                       per_capita=per_capita,
-                                       recalculate=recalculate)
+        df_gdp = _load_koch_leimbach_gdp(country_specific=country_specific,
+                                         per_capita=per_capita,
+                                         recalculate=recalculate)
+        if not get_scenarios:
+            df_gdp = df_gdp.xs('SSP2', level=1)
+        return df_gdp
     else:
         raise ValueError(f'{gdp_source} is not a valid GDP data source.')
 
@@ -260,9 +267,9 @@ def _load_mueller_stocks(country_specific, per_capita, recalculate):
     return df
 
 
-def _load_pauliuk_stocks(country_specific, per_capita, recalculate):
+def _load_iedb_stocks(country_specific, per_capita, recalculate):
     from src.read_data.read_iedb_stocks import get_iedb_country_stocks
-    df = _data_loader(file_base_name='pauliuk_stocks',
+    df = _data_loader(file_base_name='iedb_stocks',
                       recalculate_function=get_iedb_country_stocks,
                       country_specific=country_specific,
                       data_stored_per_capita=True,

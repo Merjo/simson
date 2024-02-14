@@ -27,9 +27,9 @@ class Config:
         self.end_year = 2100
 
         self.curve_strategy = 'Pauliuk'  # Options: Pauliuk, Pehl, Duerrwaechter, LSTM
-        self.steel_data_source = 'Mueller'  # Options: Mueller, IEDatabase, ScrapAge
+        self.steel_data_source = 'IEDatabase'  # Options: Mueller, IEDatabase, ScrapAge
         self.pop_data_source = 'UN'  # Options: UN, KC-Lutz (only for scenarios)
-        self.gdp_data_source = 'IMF'  # Options: IMF, Koch-Leimbach (only for scenarios)
+        self.gdp_data_source = 'Koch-Leimbach'  # Options: IMF, Koch-Leimbach (only for scenarios)
         self.trade_data_source = 'WorldSteel'  # Options: WorldSteel
         self.steel_price_data_source = 'USGS'  # Options: USGS
         self.scrap_price_data_source = 'USGS'  # Options: USGS
@@ -55,7 +55,11 @@ class Config:
         # Options: ['change', 'stock', 'inflow']
         # describing change-, stock- and inflow- based modelling approaches (Type 1, 2 & 3)
 
-        self.n_epochs = 10  # todo delete?
+        # LSTM Configurations
+
+        self.n_epochs = 10
+        self.n_rnn_layers = 8
+        self.hidden_dim = 25
 
         # ADAPTABLE PARAMETERS
 

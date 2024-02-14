@@ -21,7 +21,12 @@ def predict_duerrwaechter(stocks, gdp_data):
 
     s_0 = stocks[-1]
     g_0 = gdp_data_past[-1]
+    print(f'Dürrwächter global saturation level for model type {cfg.model_type}-driven is: {a}')
+    a = 17.4
+    b_test = -np.log(1 - (np.average(s_0) / a)) / np.average(g_0)
     b_regions = -np.log(1 - (s_0 / a)) / g_0
+
+    _test_plot_global_a_b(stocks, gdp_data_past, a, b_test)
 
     if cfg.include_gdp_and_pop_scenarios_in_prediction:
         gdp_data_future = np.moveaxis(gdp_data_future, -1, 0)
@@ -39,16 +44,22 @@ def predict_duerrwaechter(stocks, gdp_data):
     return stocks
 
 
-def _calc_global_a_b(stocks, gdp, visualise=False):
-    print(stocks.shape)
-    print(gdp.shape)
+def _calc_global_a_b(stocks, gdp, visualise=False, ignore_ref=True):
+    if ignore_ref:
+        stocks_to_use = np.delete(stocks, 9, 1)
+        gdp_to_use = np.delete(gdp, 9, 1)
+    else:
+        stocks_to_use = stocks
+        gdp_to_use = gdp
+    flattened_stocks = stocks_to_use.flatten()
+    flattened_gdp = gdp_to_use.flatten()
 
     def f(params):
-        return _duerrwaechter_stock_curve(gdp.flatten(), params[0], params[1]) - stocks.flatten()
+        return _duerrwaechter_stock_curve(flattened_gdp, params[0], params[1]) - flattened_stocks
 
     predicted_highest_stock_development = 0.1  # assume saturation level to be 10 % over stock at current highest gdp
-    x_h = np.argmax(gdp.flatten())
-    A_0 = stocks.flatten()[x_h] * (1 + predicted_highest_stock_development)
+    x_h = np.argmax(flattened_gdp)
+    A_0 = flattened_stocks[x_h] * (1 + predicted_highest_stock_development)
     b_0 = -np.log(predicted_highest_stock_development / (1 + predicted_highest_stock_development)) / x_h
     params = [A_0, b_0]
 
@@ -67,18 +78,20 @@ def _test_plot_global_a_b(stocks, gdp, a, b):
     from matplotlib import pyplot as plt
     from src.read_data.load_data import load_region_names_list
     regions = load_region_names_list()
+    colors = ['lightgreen', 'orangered', 'dodgerblue', 'brown', 'greenyellow',
+              'crimson', 'olive', 'mediumseagreen', 'black', 'mediumblue', 'orange', 'magenta']
 
     for i, region in enumerate(regions):
-        plt.plot(gdp[:, i], stocks[:, i], '.')
+        plt.plot(gdp[:, i], stocks[:, i], '.', color=colors[i])
 
     test_gdp = np.arange(0, 60000, 100)
     test_stock = _duerrwaechter_stock_curve(test_gdp, a, b)
     test_a = np.ones_like(test_gdp) * a
     plt.plot(test_gdp, test_stock, '--')
     plt.plot(test_gdp, test_a)
-    plt.xlabel('GDP ($ 2008)')
+    plt.xlabel('GDP per capita (2005 $)')
     plt.ylabel('Steel stocks per capita (t)')
-    plt.title(f'Stocks over GDP with witted Duerrwächter curve, global a={a}')
+    plt.title(f'Stocks over GDP with fitted Duerrwächter curve,\nglobal saturation level of {a} tonnes/capita')
     plt.legend(regions)
     plt.show()
     print(stocks.shape)
