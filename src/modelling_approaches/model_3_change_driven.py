@@ -93,6 +93,17 @@ def get_change_driven_past_dsms(country_specific, fabrication=None, indirect_tra
              for cat_idx, cat_inflows in enumerate(region_inflows)]
             for region_idx, region_inflows in enumerate(inflows)]
 
+    if False:  # TODO delete
+        from matplotlib import pyplot as plt
+        from src.tools.config import cfg
+        mean_data = mean[:, 5, :]
+        plt.plot(np.arange(1900, 2009), mean_data)
+        plt.xlabel('Time (y)')
+        plt.ylabel('Lifetime (y)')
+        cats = cfg.in_use_categories
+        cats.sort()
+        plt.legend(cats)
+
     return dsms
 
 

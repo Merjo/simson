@@ -26,7 +26,7 @@ class Config:
         self.start_year = 1900
         self.end_year = 2100
 
-        self.curve_strategy = 'Pauliuk'  # Options: Pauliuk, Pehl, Duerrwaechter, LSTM
+        self.curve_strategy = 'LSTM'  # Options: Pauliuk, Pehl, Duerrwaechter, LSTM
         self.steel_data_source = 'IEDatabase'  # Options: Mueller, IEDatabase, ScrapAge
         self.pop_data_source = 'UN'  # Options: UN, KC-Lutz (only for scenarios)
         self.gdp_data_source = 'Koch-Leimbach'  # Options: IMF, Koch-Leimbach (only for scenarios)

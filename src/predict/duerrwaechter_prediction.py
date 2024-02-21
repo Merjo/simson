@@ -17,16 +17,16 @@ def predict_duerrwaechter(stocks, gdp_data):
         # gdp data is equal in the past for all 5 scenarios, for calculation of A+b we just need one
         gdp_data_past = gdp_data_past[:, :, 0]  # TODO sth. seems wrong here..
 
-    a, b = _calc_global_a_b(stocks, gdp_data_past)
+    # TODO Optional a, b = _calc_global_a_b(stocks, gdp_data_past)
 
     s_0 = stocks[-1]
     g_0 = gdp_data_past[-1]
-    print(f'Dürrwächter global saturation level for model type {cfg.model_type}-driven is: {a}')
+    # TODO delete ? print(f'Dürrwächter global saturation level for model type {cfg.model_type}-driven is: {a}')
     a = 17.4
     b_test = -np.log(1 - (np.average(s_0) / a)) / np.average(g_0)
     b_regions = -np.log(1 - (s_0 / a)) / g_0
 
-    _test_plot_global_a_b(stocks, gdp_data_past, a, b_test)
+    # _test_plot_global_a_b(stocks, gdp_data_past, a, b_test)
 
     if cfg.include_gdp_and_pop_scenarios_in_prediction:
         gdp_data_future = np.moveaxis(gdp_data_future, -1, 0)

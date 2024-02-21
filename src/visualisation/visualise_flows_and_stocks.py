@@ -25,7 +25,7 @@ default_region = 'JPN'  # If dimension is not 'region', only data from this regi
 do_load_econ_model = False
 region_data_source = 'REMIND'  # Options: REMIND, Pauliuk, REMIND_EU
 steel_data_source = 'Mueller'  # Options: Mueller, IEDatabase
-curve_strategy = 'Duerrwaechter'  # Options: Pauliuk, Pehl, Duerrwaechter
+curve_strategy = 'LSTM'  # Options: Pauliuk, Pehl, Duerrwaechter, LSTM
 model_type = 'inflow'  # Options: ['change', 'stock', 'inflow']
 per_capita = True
 ignore_1900 = False
@@ -41,7 +41,7 @@ end_year = 2050
 
 # If getting wrong results it might be that recalculating base_model and dsms help.
 # This is especially relevant when config has been changed after last load of base_model.
-force_recalculate = False
+force_recalculate = True
 
 
 def visualise():
@@ -52,6 +52,8 @@ def visualise():
     legend = _get_legend(regions)
     used_labels = _get_used_labels(legend)
     values = _prepare_values(flow_or_stock, name, regions)
+    colors = ['lightgreen', 'orangered', 'dodgerblue', 'brown', 'greenyellow',
+              'crimson', 'olive', 'mediumseagreen', 'black', 'mediumblue', 'orange', 'magenta']
 
     years = cfg.years if not limit_time else range(start_year, end_year + 1)
     if ignore_1900 and not limit_time:
@@ -62,7 +64,7 @@ def visualise():
         if limit_regions:
             if label not in used_labels:
                 continue
-        plt.plot(years, line, label=label)
+        plt.plot(years, line, label=label, color=colors[i])
     plt.legend()
     flow_or_stock_string = 'flow' if do_flow_not_stock else 'stock'
     title = f"{name} {flow_or_stock_string} by '{dimension}'\n"
