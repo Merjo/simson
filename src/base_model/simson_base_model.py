@@ -236,7 +236,7 @@ def compute_flows(model: MFAsystem, country_specific: bool,
 
     direct_demand = np.sum(fabrication_use, axis=2)
     fabrication_scrap = forming_fabrication - direct_demand
-    production_plus_trade = production + imports - exports  # TODO avoid duplicate somehow?
+    production_plus_trade = production + imports - exports  # TODO avoid duplicate in upper cycle calculation somehow?
     forming_scrap = production_plus_trade - forming_fabrication
 
     outflows_by_waste = np.einsum('trgs,gw->trgws', outflows, use_eol_distribution)
@@ -273,17 +273,6 @@ def compute_flows(model: MFAsystem, country_specific: bool,
 
     scrap_in_production = scrap_in_bof + eaf_production
     waste = np.sum(total_scrap, axis=2) - scrap_in_production
-
-    # todo delete tests
-    total_outflow = np.sum(use_eol, axis=-2) + np.sum(use_env, axis=-2)
-    test = outflows - total_outflow
-    test2 = test < 1
-    test3 = np.all(test2)
-
-    total_inflow = fabrication_use + indirect_imports - indirect_exports
-    test_inflow = inflows - total_inflow
-    test_inflow2 = test_inflow < 1
-    test_inflow3 = np.all(test_inflow2)
 
     edit_flows(model, iron_production, scrap_in_bof, bof_production, eaf_production, forming_fabrication, forming_scrap,
                imports, exports, fabrication_use, reuse, fabrication_scrap, use_eol, use_env, scrap_imports,
@@ -349,13 +338,6 @@ def edit_flows(model, iron_production, scrap_in_bof, bof_production, eaf_product
     model.get_flowV(SCRAP_PID, RECYCLE_PID)[:, 0] = scrap_in_production
     model.get_flowV(SCRAP_PID, WASTE_PID)[:, 0] = waste
 
-    # todo delete test
-    test = fabrication_use + indirect_imports - indirect_exports - np.sum(use_eol, axis=-2), - np.sum(use_env, axis=-2)
-    test2 = np.sum(np.abs(test))
-    test3 = test2 < 1
-
-    a = 0
-
 
 def _get_params(model):
     params = model.ParameterDict
@@ -383,8 +365,7 @@ def _calc_max_scrap_share(scrap_share_in_production, n_regions):
 def compute_stocks(model, inflows, outflows):
     in_use_stock_change = model.get_stock_changeV(USE_PID)
     in_use_stock_change[:, 0, :, :] = inflows - outflows
-    model.calculate_stock_values_from_stock_change(
-        USE_PID)  # todo decide, does it make sense to not give stocks as paramete?
+    model.calculate_stock_values_from_stock_change(USE_PID)
 
     inflow_waste = model.get_flowV(SCRAP_PID, WASTE_PID)
     model.get_stock_changeV(WASTE_PID)[:] = inflow_waste
@@ -403,18 +384,6 @@ def mass_balance_plausible(main_model):
     Checks if a given mass balance is plausible.
     :return: True if the mass balance for all processes is below 1t of steel, False otherwise.
     """
-    # todo delete test
-    fabrication_use = main_model.get_flowV(FABR_PID, USE_PID)[:, 0]
-    indirect_imports = main_model.get_flowV(ENV_PID, USE_PID)[:, 0]
-    indirect_exports = main_model.get_flowV(USE_PID, ENV_PID)[:, 0]
-    use_disnotcol = np.sum(main_model.get_flowV(USE_PID, DISNOTCOL_PID)[:, 0], axis=-2)
-    use_scrap = np.sum(main_model.get_flowV(USE_PID, SCRAP_PID)[:, 0], axis=-2)
-    stock_change = main_model.get_stock_changeV(USE_PID)[:, 0]
-    inflows = fabrication_use + indirect_imports - indirect_exports
-    outflows = use_disnotcol + use_scrap
-    stock_change2 = inflows - outflows
-    test = stock_change - stock_change2
-    test2 = np.sum(np.abs(test)) < 1
     balance = main_model.MassBalance()
 
     balance = np.abs(np.sum(balance, axis=(0, 2)))
@@ -422,7 +391,7 @@ def mass_balance_plausible(main_model):
     if np.any(error):
         error_message = f"Error in mass balance of model\n"
         for idx, error_occured in enumerate(error):
-            if idx == 0:  # Environment will always have an error
+            if idx == 0:  # Environment will always have an error if another process has an error
                 continue
             if error_occured:
                 error_message += f"\nError in process {idx} '{main_model.ProcessList[idx].Name}': {balance[idx]}"

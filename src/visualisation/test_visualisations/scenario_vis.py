@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from src.tools.config import cfg
 from src.economic_model.simson_econ_model import load_simson_econ_model
-from src.read_data.load_data import load_gdp, load_pop, load_stocks
+from src.read_data.load_data import load_gdp, load_pop, load_stocks, load_region_names_list
 from src.tools.tools import get_np_from_df
 from src.predict.calc_steel_stocks import get_np_steel_stocks_with_prediction
 from src.base_model.load_dsms import load_dsms
@@ -95,11 +95,20 @@ def _test_scenario_vis():
 
 
 def _test_gdp_scenarios():
-    df_gdp = load_gdp('Koch-Leimbach', country_specific=False, per_capita=True)
-    regions = list(df_gdp.index.get_level_values(0).unique())
+    df_gdp = load_gdp('Koch-Leimbach', country_specific=False, per_capita=True, get_scenarios=True)
+    regions = load_region_names_list()
     df_gdp = df_gdp.sort_index()
     gdp = df_gdp.to_numpy()
     gdp = gdp.reshape(int(gdp.shape[0] / 5), 5, gdp.shape[-1])
+
+    total_gdp = np.sum(gdp, axis=0)
+    for s, scenario in enumerate(cfg.scenarios):
+        plt.plot(np.arange(1900, 2101), total_gdp[s])
+    plt.legend(cfg.scenarios)
+    plt.xlabel("Time (y)")
+    plt.ylabel("GDPpC ($)")
+    plt.title(f"World GDP pC Development")
+    plt.show()
 
     for r, region_gdp in enumerate(gdp):
         for scenario_gdp in region_gdp:

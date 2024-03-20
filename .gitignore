@@ -7,8 +7,8 @@ src/visualisation/test_visualisations/*
 simulation/output/*
 situation/interface/yaml/*
 ODYM/*
-docs/*
-docs
+doc/*
+doc
 .idea
 ~$*
 *.yml

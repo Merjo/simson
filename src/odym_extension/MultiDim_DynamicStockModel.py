@@ -18,6 +18,13 @@ class MultiDim_DynamicStockModel(DynamicStockModel):
         self.compute_outflow_total()
         self.check_steel_stock_dsm()
 
+    def copy_dsm_values(self, other_dsm: DynamicStockModel):
+        self.i = other_dsm.i
+        self.o = other_dsm.o
+        self.o_c = other_dsm.o_c
+        self.s = other_dsm.s
+        self.s_c = other_dsm.s_c
+
     def check_steel_stock_dsm(self):
         balance = self.check_stock_balance()
         balance = np.abs(balance).sum()

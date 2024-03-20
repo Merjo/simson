@@ -16,8 +16,8 @@ actual_production = actual_production[:, :]
 
 regions = load_region_names_list()
 
-model_type = 'change'  # Options: ['change', 'stock', 'inflow']
-curve_strategy = 'LSTM'  # Options: ['LSTM', 'Duerrwaechter', 'Pauliuk']
+model_type = 'inflow'  # Options: ['change', 'stock', 'inflow']
+curve_strategy = 'Duerrwaechter'  # Options: ['LSTM', 'Duerrwaechter', 'Pauliuk']
 years = np.arange(1900, 2101)
 for i, region in enumerate(regions):
     a = 0

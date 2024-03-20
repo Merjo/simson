@@ -21,7 +21,6 @@ def get_trade_category_percentages(trade_data, category_axis):
 
 
 def expand_trade_to_past_and_future(trade, scaler, first_available_year, last_available_year):
-    # TODO Delete? -> check usages after finishing 3 models
     def _scale_trade_via_trade_factor(do_before):
         if do_before:
             scaler_data = scaler[:start_idx]

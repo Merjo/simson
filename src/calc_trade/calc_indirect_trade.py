@@ -32,8 +32,6 @@ def get_scaled_past_indirect_trade(country_specific, scaler, split_categories_by
 
     indirect_imports, indirect_exports = get_imports_and_exports_from_net_trade(net_indirect_trade)
 
-    # TODO split indirect trade with scaler where categories aren't summed, use scaler (ideally inflow?)
-    # TODO data to split indirect trade into categories
     indirect_imports, indirect_exports = _split_indirect_trade_into_use_categories(split_categories_by_real_data,
                                                                                    country_specific,
                                                                                    indirect_imports,
@@ -72,7 +70,7 @@ def _split_indirect_trade_into_use_categories(split_categories_by_real_data, cou
             scenario_dim = 's'
         indirect_trade = np.einsum(f'tr{scenario_dim},rg->trg{scenario_dim}', indirect_trade, shares)
         indirect_imports, indirect_exports = get_imports_and_exports_from_net_trade(indirect_trade)
-    else:  # split exports by in-use shares in exporting countries and import by the resulting global exports shares
+    else:  # split exports by inflow category split in exporting countries and import by the resulting global exports shares
         inflow_category_share = get_trade_category_percentages(inflows, category_axis=2)
         indirect_imports = np.einsum('trs,trgs->trgs', indirect_imports, inflow_category_share)
 

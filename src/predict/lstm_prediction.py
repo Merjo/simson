@@ -25,7 +25,7 @@ cfg.n_epochs = n_epochs
 cfg.n_rnn_layers = n_rnn_layers
 
 
-def predict_lstm(stocks, gdp, pop, include_scenarios=True):  # cfg.include_gdp_and_pop_scenarios_in_prediction):TODO!
+def predict_lstm(stocks, gdp, pop, include_scenarios=cfg.include_gdp_and_pop_scenarios_in_prediction):
     past_stocks_by_category = stocks.copy()  # TODO dis dubble?
     stocks = np.sum(stocks, axis=2)
 
@@ -110,7 +110,7 @@ def _lstm_stock_curve(stocks, gdp, pop, do_create_new_model):
         plt.savefig(pic_path, dpi=300)
     if do_show_plot:
         plt.show()
-    plt.clf()  # clear figure if doing several tests
+    # plt.clf()  # clear figure if doing several tests
     return orig_stocks[109:]
 
 

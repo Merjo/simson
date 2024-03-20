@@ -6,7 +6,6 @@ from src.calc_trade.calc_trade_tools import expand_trade_to_past_and_future, get
 
 
 def get_trade(country_specific, scaler):
-    # TODO check usages of trade functions all together
     net_trade_1970_2021 = _get_net_trade_1970_2021(country_specific)
     net_trade = expand_trade_to_past_and_future(net_trade_1970_2021,
                                                 scaler=scaler,
