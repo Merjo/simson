@@ -64,10 +64,11 @@ represent is shown here:
 Test $5+1$
 tst2 $$5+1$$
 
-
 $$F_{Env-Use} = T_{indirect}^{I}(g)$$
-\$$F_{Use-Env} = T_{indirect}^{E}(g)$$
-\end{equation}
+
+$$F_{Use-Env} = T_{indirect}^{E}(g)$$
+
+Abc
 \begin{equation}
     F_{Fbr-Use}(g)=\const{I(g)}-\const{T_{indirect}^{I}(g)}+ \const{T_{indirect}^{E}(g)}
 \end{equation}
