@@ -65,12 +65,16 @@ covers one dimension (Iron/*Fe*), and the region dimension covers the twelve REM
 
 ### Flows
 
-$I(g)$ and $O(g)$ are the inflows and outflows as calculated in the dynamic stock modelling. $T$ refers to net trade 
-data (crude, indirect, scrap) and could be specified to imports ($T^{I}}) and exports ($T^{E}$). $Y$ are production 
+Finally, we can mathematically denote the calculation of the flows, or at least the relationship between the 
+flows as they are calculated differently in specific circumstances (see the chapter on modelling approaches [here](bachelor.hosak.pdf)).
+
+$I(t,e,r,g)$ and $O(t,e,r,g)$ are the inflows and outflows as calculated in the dynamic stock modelling of the use-phase. $T$ refers to net trade 
+data (crude, indirect, scrap) and could be specified to imports ($T^{I}}$) and exports ($T^{E}$). $Y$ are production 
 yields (forming, fabrication), $D$ distributions (taken from Wittig), $V$ other values/parameters. 
 $P$ refers to the total production of crude steel, $S$ to the total amount of scrap.
 
-For all flows, losses are not considered yet. $F_{A-B}$ denotes the flow between process $A$ and $B$ as labelled in Fig. \ref{fig:simson_structure}. All process outside of the system boundary are considered to be part of the 'Environment'/$Env$ process (all trade and the iron production).
+For all flows, losses are not considered yet. $F_{A-B}$ denotes the flow between process $A$ and $B$ as labelled in the structure above. 
+All process outside of the system boundary are considered to be part of the 'Environment'(Env) process (all trade and the iron production).
 
 $$F_{Env-Use}(t,e,r,g) = T_{indirect}^{I}(t,e,r,g)$$
 
@@ -114,4 +118,4 @@ $$F_{Env-BOF}(t,e,r) = F_{BOF-Frm}(t,e,r) - F_{Rcy-BOF}(t,e,r)$$
 
 $$F_{Scr-Rcy}(t,e,r) = F_{Rcy-EAF}(t,e,r) + F_{Rcy-BOF}(t,e,r)$$
 
-$$F_{Scr-Wst}(t,e,r) = \sum_wS_{available}(t,e,r,w) - F_{Scr-Rcy}$$
+$$F_{Scr-Wst}(t,e,r) = \sum_wS_{available}(t,e,r,w) - F_{Scr-Rcy}(t,e,r)$$
