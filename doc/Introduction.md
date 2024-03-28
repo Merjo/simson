@@ -11,7 +11,7 @@ In this article, we are presenting SIMSON's:
 
 1. [MFA Structure](#structure)
 2. [Index Table](#index-table)
-3. [Flows & Stocks](#flows--stocks)
+3. [Flows](#flows)
 
 ### Structure
 
@@ -58,50 +58,60 @@ represent is shown here:
 | Waste | w | 10 Waste categories: 6 according to *Wittig* (*construction & development*, *municipal solid waste*, etc.), *forming* & *fabrication* scrap, *dissipative* & *not collectable* waste |
 | Scenario | s | 5 SSP scenarios (SSP1, SSP2, etc.)                                                                                                                                                   |
 
+A certain flow $F_{Production-Forming}$ in the MFA might for example be made
+up of a three-dimensional NumPy array representing the three aspects time, element and region
+and hence have the shape `(201,1,12)` as the time dimension covers 201 years, the element dimension
+covers one dimension (Iron/*Fe*), and the region dimension covers the twelve REMIND regions, sorted alphabetically.
 
-### Flows & Stocks
+### Flows
 
+$I(g)$ and $O(g)$ are the inflows and outflows as calculated in the dynamic stock modelling. $T$ refers to net trade 
+data (crude, indirect, scrap) and could be specified to imports ($T^{I}}) and exports ($T^{E}$). $Y$ are production 
+yields (forming, fabrication), $D$ distributions (taken from Wittig), $V$ other values/parameters. 
+$P$ refers to the total production of crude steel, $S$ to the total amount of scrap.
 
-$$F_{Env-Use} = T_{indirect}^{I}(g)$$
+For all flows, losses are not considered yet. $F_{A-B}$ denotes the flow between process $A$ and $B$ as labelled in Fig. \ref{fig:simson_structure}. All process outside of the system boundary are considered to be part of the 'Environment'/$Env$ process (all trade and the iron production).
 
-$$F_{Use-Env} = T_{indirect}^{E}(g)$$
+$$F_{Env-Use}(t,e,r,g) = T_{indirect}^{I}(t,e,r,g)$$
 
-$$F_{Fbr-Use}(g)=I(g)-T_{indirect}^{I}(g)+T_{indirect}^{E}(g)$$
+$$F_{Use-Env}(t,e,r,g) = T_{indirect}^{E}(t,e,r,g)$$
 
-$$F_{Fbr-Scr}(g) = F_{Fbr-Use}(g) (\frac{1}{Y_{Fbr}(g)}-1)$$
+$$F_{Fbr-Use}(t,e,r,g)=I(t,e,r,g)-T_{indirect}^{I}(t,e,r,g)+T_{indirect}^{E}(t,e,r,g)$$
 
-$$F_{Frm-Fbr} = \sum_g(F_{Fbr-Use}(g) + F_{Fbr-Scr}(g))$$
+$$F_{Fbr-Scr}(t,e,r,g) = F_{Fbr-Use}(t,e,r,g) (\frac{1}{Y_{Fbr}(g)}-1)$$
 
-$$F_{Frm-Scr} = \frac{F_{Frm-Fbr}}{Y_{Frm}}-F_{Frm-Fbr}$$
+$$F_{Frm-Fbr}(t,e,r) = \sum_g(F_{Fbr-Use}(t,e,r,g) + F_{Fbr-Scr}(t,e,r,g))$$
 
-$$F_{Env-Frm} = T_{crude}^{I}$$
+$$F_{Frm-Scr} = \frac{F_{Frm-Fbr}(t,e,r)}{Y_{Frm}}-F_{Frm-Fbr}(t,e,r)$$
 
-$$F_{Frm-Env} = T_{crude}^{E}$$
+$$F_{Env-Frm}(t,e,r) = T_{crude}^{I}(t,e,r)$$
 
-$$P = F_{Frm-Fbr} + F_{Frm-Scr} + T_{crude}^{E} - T_{crude}^{I}$$
+$$F_{Frm-Env}(t,e,r) = T_{crude}^{E}(t,e,r)$$
 
-$$F_{Use-Scr}(g,w) = (O(g)-T_{indirect}^{E}(g))D_{Use-Scr}(g,w)$$
+$$P(t,e,r) = F_{Frm-Fbr}(t,e,r) + F_{Frm-Scr}(t,e,r) + T_{crude}^{E}(t,e,r) - T_{crude}^{I}(t,e,r)$$
 
-$$F_{Env-Scr}(w)=T_{scrap}^{I}(w)$$
+$$F_{Use-Scr}(t,e,r,g,w) = O(t,e,r,g)D_{Use-Scr}(g,w)$$
 
-$$F_{Scr-Env}(w)=T_{scrap}^{E}(w)$$
+$$F_{Env-Scr}(t,e,r,w)=T_{scrap}^{I}(t,e,r,w)$$
 
-$$S_{available}(w) = \sum_gF_{Use-Scr}(g,w) + T_{scrap}(w)+ F_{Fbr-Scr} + F_{Frm-Scr}$$
+$$F_{Scr-Env}(t,e,r,w)=T_{scrap}^{E}(t,e,r,w)$$
 
-$$S_{recyclable} = \sum_wS_{available}(w)D_{Scr-Rcy}$$
+$$S_{available}(t,e,r,w) = \sum_gF_{Use-Scr}(t,e,r,g,w) + T_{scrap}(t,e,r,w)+ \sum_gF_{Fbr-Scr}(t,e,r,g) + F_{Frm-Scr}(t,e,r)$$
 
-$$S_{prod-usable} = min(S_{recyclable},P V_{maxScrapShareProduction})$$
+$$S_{recyclable}(t,e,r) = \sum_wS_{available}(t,e,r,w)D_{Scr-Rcy}(w)$$
 
-$$F_{EAF-Frm} = min(0, \frac{\frac{S_{prod-usable}}{P}-V_{scrapShareBOF}}{1-V_{scrapShareBOF}})P$$
+$$S_{prod-usable}(t,e,r) = min(S_{recyclable}(t,e,r),P(t,e,r)V_{maxScrapShareProduction})$$
 
-$$F_{Rcy-EAF} = F_{EAF-Frm}$$
+$$F_{EAF-Frm}(t,e,r) = min(0, \frac{\frac{S_{prod-usable(t,e,r)}}{P(t,e,r)}-V_{scrapShareBOF}}{1-V_{scrapShareBOF}})P(t,e,r)$$
 
-$$F_{BOF-Frm} = P - F_{EAF-Frm}$$
+$$F_{Rcy-EAF}(t,e,r) = F_{EAF-Frm}(t,e,r)$$
 
-$$F_{Rcy-BOF} = F_{BOF-Frm}V_{scrapShareBOF}$$
+$$F_{BOF-Frm}(t,e,r) = P(t,e,r) - F_{EAF-Frm}(t,e,r)$$
 
-$$F_{Env-BOF} = F_{BOF-Frm} - F_{Rcy-BOF}$$
+$$F_{Rcy-BOF}(t,e,r) = F_{BOF-Frm}(t,e,r)V_{scrapShareBOF}$$
 
-$$F_{Scr-Rcy} = F_{Rcy-EAF} + F_{Rcy-BOF}$$
+$$F_{Env-BOF}(t,e,r) = F_{BOF-Frm}(t,e,r) - F_{Rcy-BOF}(t,e,r)$$
 
-$$F_{Scr-Wst} = \sum_wS_{available}(w) - F_{Scr-Rcy}$$
+$$F_{Scr-Rcy}(t,e,r) = F_{Rcy-EAF}(t,e,r) + F_{Rcy-BOF}(t,e,r)$$
+
+$$F_{Scr-Wst}(t,e,r) = \sum_wS_{available}(t,e,r,w) - F_{Scr-Rcy}$$
