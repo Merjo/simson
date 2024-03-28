@@ -66,6 +66,8 @@ tst2 $$5+1$$
 
 
 $$
+\newcommand{\vari}[1]{\begingroup\color{black}{#1}\endgroup}
+\newcommand{\const}[1]{\begingroup\color{gray}{#1}\endgroup}
 \begin{equation}
     F_{Env-Use} = \const{T_{indirect}^{I}(g)}
 \end{equation}
