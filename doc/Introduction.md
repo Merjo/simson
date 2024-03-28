@@ -61,8 +61,6 @@ represent is shown here:
 
 ### Flows & Stocks
 
-Test $5+1$
-tst2 $$5+1$$
 
 $$F_{Env-Use} = T_{indirect}^{I}(g)$$
 
@@ -76,7 +74,7 @@ $$F_{Frm-Fbr} = \sum_g(F_{Fbr-Use}(g) + F_{Fbr-Scr}(g))$$
 
 $$F_{Frm-Scr} = \frac{F_{Frm-Fbr}}{Y_{Frm}}-F_{Frm-Fbr}$$
 
-$$F_{Env-Frm} = T_{crude}^{I}
+$$F_{Env-Frm} = T_{crude}^{I}$$
 
 $$F_{Frm-Env} = T_{crude}^{E}$$
 
@@ -86,15 +84,15 @@ $$F_{Use-Scr}(g,w) = (O(g)-T_{indirect}^{E}(g))D_{Use-Scr}(g,w)$$
 
 $$F_{Env-Scr}(w)=T_{scrap}^{I}(w)$$
 
-$$F_{Scr-Env}(w)=T_{scrap}^{E}(w)
+$$F_{Scr-Env}(w)=T_{scrap}^{E}(w)$$
 
-$$S_{available}(w) = \sum_gF_{Use-Scr}(g,w) + T_{scrap}(w)+ F_{Fbr-Scr} + F_{Frm-Scr}
+$$S_{available}(w) = \sum_gF_{Use-Scr}(g,w) + T_{scrap}(w)+ F_{Fbr-Scr} + F_{Frm-Scr}$$
 
 $$S_{recyclable} = \sum_wS_{available}(w)D_{Scr-Rcy}$$
 
-$$S_{prod-usable} = min(S_{recyclable},P V_{maxScrapShareProduction})
+$$S_{prod-usable} = min(S_{recyclable},P V_{maxScrapShareProduction})$$
 
-$$F_{EAF-Frm} = min(0, \frac{\frac{S_{prod-usable}}{P}-V_{scrapShareBOF}}{1-V_{scrapShareBOF}})P
+$$F_{EAF-Frm} = min(0, \frac{\frac{S_{prod-usable}}{P}-V_{scrapShareBOF}}{1-V_{scrapShareBOF}})P$$
 
 $$F_{Rcy-EAF} = F_{EAF-Frm}$$
 
@@ -106,4 +104,4 @@ $$F_{Env-BOF} = F_{BOF-Frm} - F_{Rcy-BOF}$$
 
 $$F_{Scr-Rcy} = F_{Rcy-EAF} + F_{Rcy-BOF}$$
 
-$$F_{Scr-Wst} = \sum_wS_{available} - F_{Scr-Rcy}$$
+$$F_{Scr-Wst} = \sum_wS_{available}(w) - F_{Scr-Rcy}$$
