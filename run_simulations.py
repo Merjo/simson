@@ -55,6 +55,9 @@ def _save_simulation_data(sim_name, model, data_path):
         df_values = pd.DataFrame(flow_or_stock_values, index=cfg.years, columns=multi_index)
         df_values = df_values.transpose()
 
+        flow_or_stock_name = flow_or_stock_name.replace(' ', '')  # replace all whitespaces for filename
+        flow_or_stock_name = flow_or_stock_name.replace('.', '')  # replace all dots for filename
+        flow_or_stock_name = flow_or_stock_name.replace('/', '')  # replace all slashes for filename
         flow_or_stock_path = os.path.join(data_path, f'{sim_name}_{flow_or_stock_name}.csv')
         df_values.to_csv(flow_or_stock_path)
 

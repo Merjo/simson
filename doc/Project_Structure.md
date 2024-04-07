@@ -160,3 +160,6 @@ via submodules, ordered by data source.
 
 Lastly, in the *processed* folder, SIMSON stores the cleaned and restructured original data once 
 it has been loaded for the first time in a format that is easy to read. This accelerates the combutations.
+
+
+*Go to section 5:* [Economic Module](Economic_Module.md)

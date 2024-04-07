@@ -119,3 +119,5 @@ $$F_{Env-BOF}(t,e,r) = F_{BOF-Frm}(t,e,r) - F_{Rcy-BOF}(t,e,r)$$
 $$F_{Scr-Rcy}(t,e,r) = F_{Rcy-EAF}(t,e,r) + F_{Rcy-BOF}(t,e,r)$$
 
 $$F_{Scr-Wst}(t,e,r) = \sum_wS_{available}(t,e,r,w) - F_{Scr-Rcy}(t,e,r)$$
+
+*Go to section 2:* [Installation](Installation.md)

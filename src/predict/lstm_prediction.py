@@ -1,5 +1,4 @@
 import statistics
-
 import numpy as np
 import pandas as pd
 from src.predict.prediction_tools import split_future_stocks_to_base_year_categories, \
@@ -26,7 +25,7 @@ cfg.n_rnn_layers = n_rnn_layers
 
 
 def predict_lstm(stocks, gdp, pop, include_scenarios=cfg.include_gdp_and_pop_scenarios_in_prediction):
-    past_stocks_by_category = stocks.copy()  # TODO dis dubble?
+    past_stocks_by_category = stocks.copy()  # TODO is this dubble?
     stocks = np.sum(stocks, axis=2)
 
     if not include_scenarios:
@@ -145,7 +144,7 @@ def _create_new_model(ts_stocks_list, ts_covariates):
     model.fit(ts_stocks_list,
               future_covariates=ts_covariates,
               epochs=cfg.n_epochs,
-              verbose=True)
+              verbose=False)  # Todo decide
     model_mape = eval_model(model, ts_stocks_list,
                             future_covariates=ts_covariates)
 
@@ -162,7 +161,7 @@ def eval_model(model, stocks, past_covariates=None, future_covariates=None):
                                           start=95,
                                           # TODO 2008-(2022-2009)=1995))
                                           retrain=False,
-                                          verbose=True)
+                                          verbose=False)  # Todo Decide about verbose
 
     # stocks[-len(backtest) - 100:].plot()
     # backtest.plot(label='backtest (n=10)')

@@ -151,7 +151,7 @@ def get_initial_values(interim_model, q_eol):
 
 
 def _raise_error_wrong_values(data_type: str):
-    error_message = f'{data_type} appears to have fault values. \n' \
+    error_message = f'{data_type} appears to have faulty values. \n' \
                     f'\tPotential mistake in base or interim model.'
     raise RuntimeError(error_message)
 

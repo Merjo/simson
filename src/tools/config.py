@@ -112,7 +112,7 @@ class Config:
             setattr(self, prm_name, prm_value)
         return self
 
-    def generate_yml(self, filename: str = 'yaml_test.yml'):
+    def generate_yml(self, filename: str = 'default.yml'):
         """
         Generates and saves yaml file with current config file settings in
         simulation/interface/yaml folder. Filename is given as parameter,
