@@ -68,7 +68,7 @@ covers one dimension (Iron/*Fe*), and the region dimension covers the twelve REM
 Finally, we can mathematically denote the calculation of the flows, or at least the relationship between the 
 flows as they are calculated differently in specific circumstances (see the chapter on modelling approaches [here](bachelor.hosak.pdf)).
 
-$I(t,e,r,g)$ and $O(t,e,r,g)$ are the inflows and outflows as calculated in the dynamic stock modelling of the use-phase. $ T $ refers to net trade 
+$I(t,e,r,g)$ and $O(t,e,r,g)$ are the inflows and outflows as calculated in the dynamic stock modelling of the use-phase. $T^{.}$ refers to net trade 
 data (crude, indirect, scrap) and could be specified to imports ($T^{I}$) and exports ($T^{E}$). $Y$ are production 
 yields (forming, fabrication), $D$ distributions (taken from Wittig), $V$ other values/parameters. 
 $P$ refers to the total production of crude steel, $S$ to the total amount of scrap.
