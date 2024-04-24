@@ -56,10 +56,15 @@ def compute_upper_cycle(model_type=cfg.model_type, country_specific=False):  # d
     production_plus_trade = forming_fabrication * (1 / cfg.forming_yield)
     production = production_plus_trade - trade
 
-    # TODO: decide if below is necessary
-    # fabrication_use[:109] = past_fabrication_use
-    # forming_fabrication[:109] = past_forming_fabrication
-    # production[:109] = past_production
+    # test if something went wrong during model approaches
+    test_a = np.all(fabrication_use[:109] - past_fabrication_use < 0.01)
+    test_b = np.all(forming_fabrication[:109] - past_forming_fabrication < 0.01)
+    test_c = np.all(production[1:109] - past_production[1:] < 0.01)
+    if not (test_a and test_b and test_c):
+        raise RuntimeError('Something went wrong during model approach calculation.')
+
+    # production might have been changed in the first year depending on the model approach
+    production[:109] = past_production
 
     return production, trade, forming_fabrication, fabrication_use, indirect_trade, inflows, stocks, outflows
 
