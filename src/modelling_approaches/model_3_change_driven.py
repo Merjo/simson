@@ -8,7 +8,7 @@ from src.odym_extension.MultiDim_DynamicStockModel import MultiDim_DynamicStockM
 from src.read_data.load_data import load_lifetimes
 
 
-def get_change_driven_model_upper_cycle(country_specific=False):  # TODO same as model 3 -> make more efficient?
+def get_change_driven_model_past_upper_cycle(country_specific=False):  # TODO same as model 3 -> make more efficient?
     production, trade, forming_fabrication, indirect_trade = \
         get_past_production_trade_forming_fabrication(country_specific)
 

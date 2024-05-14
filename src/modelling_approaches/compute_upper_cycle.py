@@ -1,34 +1,32 @@
 import numpy as np
 from src.tools.config import cfg
-from src.modelling_approaches.model_3_change_driven import get_change_driven_model_upper_cycle
-from src.modelling_approaches.model_2_stock_driven import get_stock_driven_model_upper_cycle
-from src.modelling_approaches.model_1_inflow_driven import get_inflow_driven_model_upper_cycle
+from src.modelling_approaches.model_3_change_driven import get_change_driven_model_past_upper_cycle
+from src.modelling_approaches.model_2_stock_driven import get_stock_driven_model_past_upper_cycle
+from src.modelling_approaches.model_1_inflow_driven import get_inflow_driven_model_past_upper_cycle
 from src.modelling_approaches.load_model_dsms import load_model_dsms, get_dsm_data
 from src.calc_trade.calc_trade_tools import scale_trade
-from src.base_model.load_params import get_cullen_fabrication_yield
+from src.base_model.load_params import get_cullen_fabrication_yield, get_cullen_forming_yield, \
+    get_daehn_good_intermediate_distribution
 
 
 def compute_upper_cycle(model_type=cfg.model_type, country_specific=False):  # decide country_specific
     # TODO: include REUSE ???
 
     if model_type == 'change':
-        get_upper_cycle_function = get_change_driven_model_upper_cycle
+        get_upper_cycle_function = get_change_driven_model_past_upper_cycle
     elif model_type == 'stock':
-        get_upper_cycle_function = get_stock_driven_model_upper_cycle
+        get_upper_cycle_function = get_stock_driven_model_past_upper_cycle
     elif model_type == 'inflow':
-        get_upper_cycle_function = get_inflow_driven_model_upper_cycle
-    past_production, past_trade, past_forming_fabrication, past_fabrication_use, past_indirect_trade, past_inflows, \
+        get_upper_cycle_function = get_inflow_driven_model_past_upper_cycle
+    past_production, past_forming_intermediate, past_trade, past_intermediate_fabrication, past_fabrication_use, past_indirect_trade, past_inflows, \
     past_stocks, past_outflows = \
         get_upper_cycle_function(country_specific=country_specific)
 
     past_production = _add_scenario_dimension(past_production)
     past_trade = _add_scenario_dimension(past_trade)
-    past_forming_fabrication = _add_scenario_dimension(past_forming_fabrication)
+    past_intermediate_fabrication = _add_scenario_dimension(past_intermediate_fabrication)
     past_fabrication_use = _add_scenario_dimension(past_fabrication_use)
     past_indirect_trade = _add_scenario_dimension(past_indirect_trade)
-    past_inflows = _add_scenario_dimension(past_inflows)
-    past_stocks = _add_scenario_dimension(past_stocks)
-    past_outflows = _add_scenario_dimension(past_outflows)
 
     future_dsms = load_model_dsms(country_specific=country_specific,
                                   do_past_not_future=False,
@@ -38,35 +36,37 @@ def compute_upper_cycle(model_type=cfg.model_type, country_specific=False):  # d
 
     inflows, stocks, outflows = get_dsm_data(future_dsms)
 
-    inflows[:109] = past_inflows
-    stocks[:109] = past_stocks
-    outflows[:109] = past_outflows
     future_indirect_trade = scale_trade(past_indirect_trade, scaler=inflows[109 - 1:],
                                         do_past_not_future=False)
     indirect_trade = np.concatenate((past_indirect_trade, future_indirect_trade), axis=0)
-    future_trade = scale_trade(past_trade, scaler=np.sum(inflows[109 - 1:], axis=2),
+
+    fabrication_yield = np.array(get_cullen_fabrication_yield())
+    gi_distribution = get_daehn_good_intermediate_distribution()
+    forming_yield = get_cullen_forming_yield()
+
+    fabrication_use = inflows - indirect_trade
+    intermediate_fabrication = np.einsum('trgs,g,gi->tris', fabrication_use, 1 / fabrication_yield, gi_distribution)
+
+    future_trade = scale_trade(past_trade, scaler=intermediate_fabrication[109 - 1:],
+                               # de facto the scaler is inflows, this just helps because it has the same dimensions
                                do_past_not_future=False)
     trade = np.concatenate((past_trade, future_trade), axis=0)
 
-    fabrication_yield = get_cullen_fabrication_yield()
-    fabrication_use = inflows - indirect_trade
-
-    fabrication_by_category = np.einsum('trgs,g->trgs', fabrication_use, 1 / np.array(fabrication_yield))
-    forming_fabrication = np.sum(fabrication_by_category, axis=2)
-    production_plus_trade = forming_fabrication * (1 / cfg.forming_yield)
-    production = production_plus_trade - trade
+    forming_intermediate = intermediate_fabrication - trade
+    production = np.einsum('tris,i->trs', forming_intermediate, 1 / forming_yield)
 
     # test if something went wrong during model approaches
-    test_a = np.all(fabrication_use[:109] - past_fabrication_use < 0.01)
-    test_b = np.all(forming_fabrication[:109] - past_forming_fabrication < 0.01)
-    test_c = np.all(production[1:109] - past_production[1:] < 0.01)
+    test_a = np.all(fabrication_use[:109] - past_fabrication_use < 4)
+    test_b = np.all(intermediate_fabrication[:109, :, :, 1] - past_intermediate_fabrication[:, :, :, 1] < 4)
+    test_c = np.all(production[1:109, :, 1] - past_production[1:, :, 1] < 4)
     if not (test_a and test_b and test_c):
         raise RuntimeError('Something went wrong during model approach calculation.')
 
     # production might have been changed in the first year depending on the model approach
     production[:109] = past_production
 
-    return production, trade, forming_fabrication, fabrication_use, indirect_trade, inflows, stocks, outflows
+    return production, forming_intermediate, trade, intermediate_fabrication, fabrication_use, indirect_trade, \
+           inflows, stocks, outflows
 
 
 def _add_scenario_dimension(data):

@@ -9,7 +9,7 @@ from src.base_model.model_tools import calc_change_timeline
 
 
 def load_model_dsms(country_specific, do_past_not_future, model_type=cfg.model_type, do_econ_model=cfg.do_model_economy,
-                    recalculate=cfg.recalculate_data, forming_fabrication=None, indirect_trade=None):
+                    recalculate=cfg.recalculate_data, production=None, trade=None, indirect_trade=None):
     recalculate = True  # TODO delete
     file_name = _get_dsms_file_name(country_specific, do_past_not_future, model_type, do_econ_model)
     file_path = os.path.join(cfg.data_path, 'models', file_name)
@@ -17,7 +17,7 @@ def load_model_dsms(country_specific, do_past_not_future, model_type=cfg.model_t
         dsms = pickle.load(open(file_path, "rb"))
         return dsms
     else:
-        dsms = _get_dsms(country_specific, do_past_not_future, model_type, do_econ_model, forming_fabrication,
+        dsms = _get_dsms(country_specific, do_past_not_future, model_type, do_econ_model, production, trade,
                          indirect_trade)
         pickle.dump(dsms, open(file_path, "wb"))
         return dsms
@@ -51,8 +51,8 @@ def get_dsm_lifetimes(dsms):
     return lifetime_means, lifetime_sds
 
 
-def _get_dsms(country_specific, do_past_not_future, model_type, do_econ_model, forming_fabrication=None,
-              indirect_trade=None):
+def _get_dsms(country_specific, do_past_not_future, model_type, do_econ_model, production=None,
+              trade=None, indirect_trade=None):
     if do_past_not_future:
         if model_type == 'stock':
             from src.modelling_approaches.model_2_stock_driven import get_stock_driven_past_dsms
@@ -60,23 +60,25 @@ def _get_dsms(country_specific, do_past_not_future, model_type, do_econ_model, f
             return dsms
         elif model_type == 'inflow':
             from src.modelling_approaches.model_1_inflow_driven import get_inflow_driven_past_dsms
-            dsms = get_inflow_driven_past_dsms(country_specific, forming_fabrication, indirect_trade)
+            dsms = get_inflow_driven_past_dsms(country_specific, production, trade, indirect_trade)
             return dsms
         elif model_type == 'change':
             from src.modelling_approaches.model_3_change_driven import get_change_driven_past_dsms
-            dsms = get_change_driven_past_dsms(country_specific, forming_fabrication, indirect_trade)
+            dsms = get_change_driven_past_dsms(country_specific, production,
+                                               indirect_trade)  # change, was forming fabrication instead of production
             return dsms
         else:
             raise RuntimeError()  # TODO change
     else:  # do future
-        dsms = _calc_future_dsms(country_specific, model_type, forming_fabrication, indirect_trade, do_econ_model)
+        dsms = _calc_future_dsms(country_specific, model_type, production, trade, indirect_trade, do_econ_model)
         return dsms
     raise RuntimeError()  # TODO change
 
 
-def _calc_future_dsms(country_specific, model_type, forming, indirect_trade, do_econ_model):
+def _calc_future_dsms(country_specific, model_type, production, trade, indirect_trade, do_econ_model):
     past_dsms = load_model_dsms(country_specific, do_past_not_future=True, model_type=model_type,
-                                forming_fabrication=forming, indirect_trade=indirect_trade, do_econ_model=do_econ_model)
+                                production=production, trade=trade, indirect_trade=indirect_trade,
+                                do_econ_model=do_econ_model)
     # TODO check logic, is forming_fabrication and indirect_trade really necessary?
     # TODO (any use-case where that won't be already available?)
 

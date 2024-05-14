@@ -22,13 +22,19 @@ def get_indirect_trade(country_specific, scaler, inflows, outflows, split_catego
 
 
 def get_scaled_past_indirect_trade(country_specific, scaler, split_categories_by_real_data=True):
-    scaler = scaler[:102]  # only use scaler up to 2001
+    past_scaler = scaler[:102]  # only use scaler up to 2001
     net_indirect_trade_2001_2019 = _get_net_indirect_trade_2001_2019(country_specific)
     net_indirect_trade_1900_2000 = scale_trade(trade=net_indirect_trade_2001_2019,
-                                               scaler=scaler,
+                                               scaler=past_scaler,
                                                do_past_not_future=True)
+    future_scaler = scaler[119:]
+    net_indirect_trade_2020_2022 = scale_trade(trade=net_indirect_trade_2001_2019,
+                                               scaler=future_scaler,
+                                               do_past_not_future=False)
 
-    net_indirect_trade = np.concatenate((net_indirect_trade_1900_2000, net_indirect_trade_2001_2019), axis=0)
+    net_indirect_trade = np.concatenate((net_indirect_trade_1900_2000,
+                                         net_indirect_trade_2001_2019,
+                                         net_indirect_trade_2020_2022), axis=0)
 
     indirect_imports, indirect_exports = get_imports_and_exports_from_net_trade(net_indirect_trade)
 
