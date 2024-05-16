@@ -11,8 +11,8 @@ def predict_duerrwaechter(stocks, gdp_data):
     past_stocks_by_category = stocks.copy()
     stocks = np.sum(stocks, axis=2)
 
-    gdp_data_future = gdp_data[109:]
-    gdp_data_past = gdp_data[:109]  # up until 2009 all scenarios are the same
+    gdp_data_future = gdp_data[123:]
+    gdp_data_past = gdp_data[:123]  # up until 2009 all scenarios are the same
     if cfg.include_gdp_and_pop_scenarios_in_prediction:
         # gdp data is equal in the past for all 5 scenarios, for calculation of A+b we just need one
         gdp_data_past = gdp_data_past[:, :, 0]  # TODO sth. seems wrong here..

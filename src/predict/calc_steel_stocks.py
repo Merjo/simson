@@ -39,7 +39,7 @@ def get_np_steel_stocks_with_prediction(country_specific, get_per_capita=False,
         stocks = _get_np_old_stocks_data(country_specific)
     else:
         # transfer stocks to per capita stocks
-        past_pop = pop[:109]
+        past_pop = pop[:123]
         if include_gdp_and_pop_scenarios:
             past_pop = past_pop[:, :, 0]  # in the past, all scenarios are the same
         stocks = np.einsum('trg,tr->trg', stocks, 1 / past_pop)

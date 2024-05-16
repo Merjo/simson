@@ -5,8 +5,9 @@ from src.tools.tools import get_np_from_df
 from src.read_data.load_data import load_scrap_trade_1971_2022
 
 
-def get_scrap_trade(country_specific, scaler, available_scrap_by_category):
+def get_scrap_trade(country_specific, available_scrap_by_category):
     scrap_trade_1971_2022 = _get_net_scrap_trade_1971_2022(country_specific)
+    scaler = np.sum(available_scrap_by_category, axis=2)
     net_scrap_trade = expand_trade_to_past_and_future(scrap_trade_1971_2022,
                                                       scaler=scaler,
                                                       first_available_year=1971,
@@ -67,12 +68,12 @@ def _split_scrap_trade_into_waste_categories(scrap_imports, scrap_exports, avail
 
     available_scrap_waste_share = get_trade_category_percentages(available_scrap_by_category, category_axis=2)
 
-    scrap_exports = np.einsum('trs,trws->trws', scrap_exports, available_scrap_waste_share)
+    scrap_exports = np.einsum('trs,trgs->trgs', scrap_exports, available_scrap_waste_share)
 
     global_exports = np.sum(scrap_exports, axis=1)
     scrap_exports_waste_share = get_trade_category_percentages(global_exports, category_axis=1)
 
-    scrap_imports = np.einsum('trs,tws->trws', scrap_imports, scrap_exports_waste_share)
+    scrap_imports = np.einsum('trs,tgs->trgs', scrap_imports, scrap_exports_waste_share)
 
     return scrap_imports, scrap_exports
 

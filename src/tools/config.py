@@ -39,8 +39,13 @@ class Config:
         self.indirect_trade_source = 'WorldSteel'  # Options: WorldSteel
         self.lifetime_data_source = 'Pauliuk'  # Options: Wittig, Pauliuk
 
-        self.in_use_categories = ['Transport', 'Machinery', 'Construction', 'Products']
+        self.elements = ['Fe', 'Cu']
+        self.in_use_categories = ['Construction', 'Machinery', 'Products', 'Transport']
         self.recycling_categories = ['CD', 'MSW', 'WEEE', 'ELV', 'IEW', 'INEW', 'Form', 'Fabr', 'Dis', 'NotCol']
+        self.intermediate_products = ['CRC', 'CRC_Coated', 'CRC_Galv', 'CRC_Tinned', 'Cast_Iron', 'Cast_Steel',
+                                      'Electrical_Sheet', 'HRC', 'HRC_Galv', 'HR_Narrow_Strip', 'Heavy_Sections',
+                                      'Hot_Rolled_Bar', 'Light Sections', 'Plate', 'Rail', 'Rebar', 'Samless_Tube',
+                                      'Welded_Tube', 'Wire_Rod']
         self.scenarios = ['SSP1', 'SSP2', 'SSP3', 'SSP4', 'SSP5']
 
         self.n_use_categories = len(self.in_use_categories)
@@ -51,7 +56,7 @@ class Config:
         self.default_lifetime_sd_pct_of_mean = 0.3
 
         self.do_model_approaches = True
-        self.model_type = 'change'
+        self.model_type = 'inflow'
         # Options: ['change', 'stock', 'inflow']
         # describing change-, stock- and inflow- based modelling approaches (Type 1, 2 & 3)
 

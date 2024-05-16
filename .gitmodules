@@ -51,4 +51,4 @@
 	url = git@gitlab.pik-potsdam.de:simson_data/iso3_codes.git
 [submodule "data/original/daehn"]
 	path = data/original/daehn
-	url = git@gitlab.pik-potsdam.de:simson_data/daehn.git
+	url = https://gitlab.pik-potsdam.de/simson_data/daehn.git

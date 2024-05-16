@@ -50,60 +50,6 @@ def get_inflow_driven_past_dsms(country_specific, production=None, trade=None, i
     return dsms
 
 
-def _calc_inflows_via_sector_splits2(production, trade, indirect_trade, mean, std_dev):
-    forming_yield = get_cullen_forming_yield()
-    fabrication_yield = np.array(get_cullen_fabrication_yield())
-    gi_distribution = get_daehn_good_intermediate_distribution()
-    sector_splits = get_region_sector_splits()[:123]  # TODO: country?
-
-    lifetime_matrix = _calc_lifetime_matrix(mean, std_dev)
-
-    stocks = np.zeros_like(indirect_trade)
-    inflows = np.zeros_like(indirect_trade)
-
-    for t in range(123):
-        p = production[t]
-        dt = trade[t]  # direct trade
-        it = indirect_trade[t]
-        s_last = stocks[t - 1]  # todo: check if -1 works, should be zero
-        o_p = np.einsum('trg,trg->rg', inflows[:t], lifetime_matrix[t, :t])
-
-        current_stocks = s_last - o_p + it
-
-        prio_0 = np.abs(np.minimum(0, current_stocks))  # TODO, check if needed is reached
-
-        c = sector_splits[t]
-
-        high = np.einsum('rg,rg->rg', current_stocks, 1 / c)
-        wanted = np.einsum('r,rg->rg', np.max(high, axis=1), c)
-        missing = wanted - current_stocks - prio_0
-
-        missing_sorted = np.sort(missing, axis=1)
-
-        prio_1 = np.maximum(0, missing - np.expand_dims(missing_sorted[:, 2], axis=1))
-        prio_2 = np.maximum(0, missing - prio_1 - np.expand_dims(missing_sorted[:, 1], axis=1))
-        prio_3 = missing - prio_1 - prio_2
-
-        new_dt = np.zeros_like(dt)
-        p_i = np.zeros_like(dt)
-        for prio in [prio_0, prio_1, prio_2, prio_3]:
-            prio_demand = np.einsum('rg,g,gi->ri', prio, 1 / fabrication_yield, gi_distribution)
-
-            # what is possible to take from direct trade is taken into new_dt (new direct trace)
-
-            from_dt = np.minimum(prio_demand, dt)
-            new_dt += from_dt
-            dt -= from_dt
-            prio_demand -= from_dt
-
-            # rest is taken from production
-            prio_demand = np.einsum('ri,i->ri', prio_demand, 1 / forming_yield)
-            x = prio_demand / np.sum(prio_demand, axis=2)
-            from_p = np.minimum(np.sum(prio_demand, axis=1), p)
-            p_i += np.einsum('r,ri->ri', from_p, x)
-            p -= from_p
-
-
 def _calc_inflows_via_sector_splits(production, trade, indirect_trade, mean, std_dev):
     forming_yield = get_cullen_forming_yield()
     fabrication_yield = np.array(get_cullen_fabrication_yield())
@@ -242,7 +188,7 @@ def _calc_inflows_via_sector_splits(production, trade, indirect_trade, mean, std
 
     if not p_test3 or not p_test5:
         print('Fail')
-    print('Hello')
+
     return inflows
 
 
@@ -274,116 +220,6 @@ def _transform_x_from_g_to_i(x, production, big_Y, fabrication_yield, gi_distrib
     return x_result
 
 
-def _calc_inflows_via_sector_splits3(production, trade, indirect_trade, mean, std_dev):
-    forming_yield = get_cullen_forming_yield()
-    fabrication_yield = np.array(get_cullen_fabrication_yield())
-    gi_distribution = get_daehn_good_intermediate_distribution()
-
-    big_Y = 1 / np.einsum('g,gi,i->g', 1 / fabrication_yield, gi_distribution, 1 / forming_yield)
-
-    sector_splits = get_region_sector_splits()[:109]  # TODO: country?
-
-    direct_trade_in_goods = _distribute_intermediate_good(trade, 'tri', gi_distribution)
-    agg_trade = np.einsum('trg,g->trg', direct_trade_in_goods, fabrication_yield) + indirect_trade
-
-    lifetime_matrix = _calc_lifetime_matrix(mean, std_dev)
-    l = np.einsum('trd,turg->turgd', sector_splits, 1 - lifetime_matrix)  # here 'u' denotes t_dash / t'
-    d_0_dividend = l[0, 0]
-    d_0 = np.einsum('rgd,rdg->rgd', d_0_dividend, 1 / d_0_dividend)
-    initial_agg_trade = np.repeat(np.expand_dims(agg_trade[0], axis=2), cfg.n_use_categories, axis=2)
-    b_0_dividend = initial_agg_trade * d_0 - np.swapaxes(initial_agg_trade, 1, 2)
-    b_0_divisor = np.einsum('r,g->rg', production[0], fabrication_yield)
-    b_0 = np.einsum('rgd,rd->rgd', b_0_dividend, 1 / b_0_divisor)
-    b_0 = np.sum(b_0, axis=2)
-    m_0_dividend = np.einsum('g,rgd->rgd', fabrication_yield, d_0)
-    m_0 = np.einsum('rgd,d->rgd', m_0_dividend, 1 / fabrication_yield)
-    m_0 = np.sum(m_0, axis=2)
-
-    x_0 = (1 - b_0) / m_0
-    x_0 = np.einsum('rg,gi,i->ri', x_0, gi_distribution, 1 / forming_yield)
-
-    i_0_prep = np.einsum('r,ri,i->ri', production[0], x_0, forming_yield) + trade[0]
-    i_0_prep = _distribute_intermediate_good(i_0_prep, 'ri')
-    i_0 = np.einsum('rg,g->rg', i_0_prep, fabrication_yield) + indirect_trade[0]
-
-    inflows = np.zeros_like(indirect_trade)
-    inflows[0] = i_0
-    forming_sector_split = np.zeros_like(trade)
-    forming_sector_split[0] = x_0
-
-    for t in range(1, 109):
-        p = production[t]
-        s_prepare = np.einsum('trg,trg->trg', inflows[:t], lifetime_matrix[t, :t])
-        s_prepare = np.sum(s_prepare, axis=0)
-        c = sector_splits[t]
-        it = agg_trade[t]
-        lt = lifetime_matrix[t, t]
-        y = fabrication_yield
-
-        m_1 = p * y[0] * (1 - lt[:, 0])
-        m_2 = np.einsum('r,rg->rg', m_1, c)
-        m_3 = np.einsum('rg,r->rg', m_2, 1 / c[:, 0])
-        m_4 = np.einsum('rg,r,g->rg', (1 - lt), p, y)
-        m = m_3 / m_4
-
-        b_1 = (it[:, 0] * (1 - lt[:, 0]) - s_prepare[:, 0]) / c[:, 0]
-        b_2 = np.einsum('r,rg->rg', b_1, c)
-        b_3 = b_2 + s_prepare
-        b_4 = m_4
-        b_5 = b_3 / b_4
-        b_6 = np.einsum('rg,r,g->rg', it, 1 / p, 1 / y)
-        b = b_5 - b_6
-
-        x_1 = (1 - np.sum(b, axis=1)) / np.sum(m, axis=1)
-        x_t = np.einsum('r,rg->rg', x_1, m) + b
-
-        min_x = np.einsum('rg,r,g->rg', -it, 1 / p, 1 / y)
-        min_x = np.maximum(0, min_x)  # x should also never be zero
-        if np.any(x_t < min_x):
-            for region_idx in range(x_t.shape[0]):
-                # TODO: avoid for loop
-                xtr = x_t[region_idx]
-                minxr = min_x[region_idx]
-                if np.any(xtr < minxr):
-                    diff = xtr - minxr
-                    neg_pcts = np.minimum(0, diff)
-                    pos_pcts = np.maximum(0, diff)
-                    sum_factor = np.abs(np.sum(pos_pcts) / np.sum(neg_pcts))
-                    xtr = xtr - diff / sum_factor
-                    xtr[xtr < minxr] = minxr[xtr < minxr]
-                    x_t[region_idx] = xtr
-
-        x_t = np.einsum('rg,gi,i->ri', x_t, gi_distribution, 1 / forming_yield)
-        forming_sector_split[t] = x_t
-
-        i_0_prep = np.einsum('r,ri,i->ri', production[0], x_0, forming_yield) + trade[0]
-        i_0_prep = _distribute_intermediate_good(i_0_prep, 'ri')
-        i_0 = np.einsum('rg,g->rg', i_0_prep, fabrication_yield) + indirect_trade[0]
-
-        i_prep = np.einsum('r,ri,i->ri', p, x_t, forming_yield) + trade[t]
-        i_prep = _distribute_intermediate_good(i_prep, 'ri')
-        i = np.einsum('rg,g->rg', i_prep, fabrication_yield) + indirect_trade[t]
-
-        inflows[t] = i
-    # fabrication_by_category = np.einsum('tr,trg->trg', fabrication, fabrication_category_share)
-    # TODO Delete this and fabrication category share instance and updates if not needed
-
-    inflows[np.logical_and(inflows < 0,
-                           inflows > -0.1)] = 0  # make inflows which are -0 or otherwise slightly negative positive 0
-
-    test_production = np.einsum('trg,g,gi->tri', inflows - indirect_trade, 1 / fabrication_yield, 1 / gi_distribution)
-    test_production = np.einsum('tri,i->tr', test_production - trade, 1 / forming_yield)
-    test2 = test_production[1:] - production[1:]
-    test3 = np.all(test2 < 1)
-
-    test_inflows = np.einsum('tr,tri,i->tri', test_production, forming_sector_split, forming_yield) + trade
-    test_inflows = np.einsum('tri,ig,g->trg', test_inflows, ig_distribution, fabrication_yield) + indirect_trade
-    test4 = test_inflows[1:] - inflows[1:]
-    test5 = np.all(test4 < 1)
-
-    return inflows
-
-
 def _distribute_intermediate_good(data: np.ndarray, dimensions: str, gi_distribution=None, do_test=True):  # TODO test?
     if gi_distribution is None:
         gi_distribution = get_daehn_good_intermediate_distribution()
@@ -405,8 +241,8 @@ def _distribute_intermediate_good(data: np.ndarray, dimensions: str, gi_distribu
 
 
 def _calc_lifetime_matrix(mean, std_dev):
-    t = np.arange(0, 109)
-    t_dash = np.arange(0, 109)
+    t = np.arange(0, 123)
+    t_dash = np.arange(0, 123)
     t_matrix = np.subtract.outer(t, t_dash)
     regions = load_region_names_list()
     n_regions = len(regions)

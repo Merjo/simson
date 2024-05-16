@@ -84,7 +84,6 @@ def _calc_future_dsms(country_specific, model_type, production, trade, indirect_
 
     past_inflows, past_stocks, past_outflows = get_dsm_data(past_dsms)
     past_lifetime_means, past_lifetime_sds = get_dsm_lifetimes(past_dsms)
-    print(f'Model Type: {model_type}')  # todo delete
     stocks = get_np_steel_stocks_with_prediction(country_specific=False,  # TODO decide country specific
                                                  get_per_capita=False,
                                                  stocks=past_stocks)
@@ -96,9 +95,9 @@ def _calc_future_dsms(country_specific, model_type, production, trade, indirect_
     lifetime_sds = np.ones_like(lifetime_means)
     # initiate lifetime with most recent lifetime
     lifetime_means = np.einsum('trg,rg->trg', lifetime_means, past_lifetime_means[-1])
-    lifetime_means[:109] = past_lifetime_means
+    lifetime_means[:123] = past_lifetime_means
     lifetime_sds = np.einsum('trg,rg->trg', lifetime_sds, past_lifetime_sds[-1])
-    lifetime_sds[:109] = past_lifetime_sds
+    lifetime_sds[:123] = past_lifetime_sds
     future_dsms = get_stock_based_dsms(stocks, 1900, 2100,
                                        do_scenarios=True,
                                        lt_mean=lifetime_means,

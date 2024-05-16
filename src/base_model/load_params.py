@@ -6,6 +6,7 @@ from src.tools.config import cfg
 
 DAEHN_PATH = os.path.join(cfg.data_path, 'original', 'daehn')
 CULLEN_PATH = os.path.join(cfg.data_path, 'original', 'cullen')
+WS_DIGITALIZED_PATH = os.path.join(cfg.data_path, 'original', 'worldsteel', 'WS_digitalized')
 
 
 def get_cullen_fabrication_yield():
@@ -36,7 +37,7 @@ def get_daehn_tolerances():
     return tolerances
 
 
-def get_daehn_intermediate_good_distribution():
+def get_daehn_intermediate_good_distribution():  # todo delete?
     ig_distribution_path = os.path.join(DAEHN_PATH, 'intermediate_to_good_distribution.csv')
     ig_distribution = _load_normal_param_csv(ig_distribution_path)
     return ig_distribution
@@ -47,6 +48,12 @@ def get_daehn_good_intermediate_distribution():
     gi_distribution = _load_normal_param_csv(gi_distribution_path)
     gi_distribution = gi_distribution.transpose()  # transpose matrix to have goods as first matrix
     return gi_distribution
+
+
+def get_daehn_external_copper_rate():
+    copper_rate_path = os.path.join(DAEHN_PATH, 'daehn_external_copper_rate.csv')
+    copper_rate = _load_normal_param_csv(copper_rate_path)
+    return copper_rate
 
 
 def get_wittig_distributions():
@@ -61,12 +68,18 @@ def get_wittig_distributions():
 
 
 def get_worldsteel_intermediate_trade_shares():
-    intermediate_trade_share_path = os.path.join(cfg.data_path, 'original', 'worldsteel', 'WS_digitalized',
-                                                 'global_intermediate_trade_shares_cropped.csv')
+    intermediate_trade_share_path = os.path.join(WS_DIGITALIZED_PATH, 'global_intermediate_trade_shares_cropped.csv')
     # we use the cropped trade shares so that the trade fits perfectly with the good - intermediate product distribution
 
     intermediate_trade_shares = _load_normal_param_csv(intermediate_trade_share_path)
     return intermediate_trade_shares
+
+
+def get_worldsteel_recovery_rates():
+    recovery_rate_path = os.path.join(WS_DIGITALIZED_PATH, 'worldsteel_recovery_rates.csv')
+    recovery_rates = _load_normal_param_csv(recovery_rate_path)
+
+    return recovery_rates
 
 
 def _load_normal_param_csv(path):
@@ -77,6 +90,8 @@ def _load_normal_param_csv(path):
     data = df.to_numpy()
     if data.shape[-1] == 1:  # if shape of dimension of np-array is 1, dimension is not needed
         data = data.reshape(data.shape[:-1])
+    if data.shape[0] == 1:
+        data = data.reshape(data.shape[1:])
     return data
 
 

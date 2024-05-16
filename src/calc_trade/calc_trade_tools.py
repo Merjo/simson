@@ -28,7 +28,6 @@ def expand_trade_to_past_and_future(trade, scaler, first_available_year, last_av
         else:
             scaler_data = scaler[end_idx + 1:]
             trade_factor = trade[-1] / scaler[end_idx]
-            a = 0
         new_trade_data = np.einsum('trs,rs->trs', scaler_data, trade_factor)
         new_trade_data = balance_trade(new_trade_data)
 
