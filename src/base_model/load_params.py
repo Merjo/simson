@@ -34,6 +34,7 @@ def get_cullen_production_yield():
 def get_daehn_tolerances():
     tolerances_path = os.path.join(DAEHN_PATH, 'cu_tolerances_ip.csv')
     tolerances = _load_normal_param_csv(tolerances_path)
+    tolerances /= 100  # tolerances are given in %, hence 0.3 denotes 0.3 % not 30 %
     return tolerances
 
 

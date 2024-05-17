@@ -27,6 +27,7 @@ class Config:
         self.end_year = 2100
 
         self.curve_strategy = 'Duerrwaechter'  # Options: Pauliuk, Pehl, Duerrwaechter, LSTM
+        self.recycling_strategy = 'tramp'  # Options: base, tramp, econ  # TODO:  Implement tramp + econ
         self.steel_data_source = 'IEDatabase'  # Options: Mueller, IEDatabase, ScrapAge
         self.pop_data_source = 'UN'  # Options: UN, KC-Lutz (only for scenarios)
         self.gdp_data_source = 'Koch-Leimbach'  # Options: IMF, Koch-Leimbach (only for scenarios)

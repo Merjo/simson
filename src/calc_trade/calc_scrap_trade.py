@@ -18,6 +18,10 @@ def get_scrap_trade(country_specific, available_scrap_by_category):
     scrap_imports, scrap_exports = _split_scrap_trade_into_waste_categories(scrap_imports,
                                                                             scrap_exports,
                                                                             available_scrap_by_category)
+    # We assume no scrap trade in the first year due to buffer
+    scrap_imports[0] = 0
+    scrap_exports[0] = 0
+
     return scrap_imports, scrap_exports
 
 
@@ -48,7 +52,10 @@ def _recalculate_scrap_trade_based_on_scrap_availability(projected_scrap_trade, 
     overload = np.maximum(scrap_exports - available_scrap, 0)
     overload = np.sum(overload, axis=1)
     global_scrap_imports = np.sum(scrap_imports, axis=1)
-    factor = (global_scrap_imports - overload) / global_scrap_imports
+    factor = np.divide((global_scrap_imports - overload),
+                       global_scrap_imports,
+                       out=np.zeros_like(global_scrap_imports),
+                       where=global_scrap_imports != 0)
 
     scrap_imports = np.einsum('trs,ts->trs', scrap_imports, factor)
     scrap_exports = np.minimum(scrap_exports, available_scrap)

@@ -9,11 +9,14 @@ from src.tools.config import cfg
 from src.base_model.model_tools import get_dsm_data, get_stock_data_country_specific_areas, calc_change_timeline
 from src.base_model.load_dsms import load_dsms
 from src.base_model.load_params import get_cullen_fabrication_yield, get_cullen_forming_yield, get_wittig_distributions, \
-    get_worldsteel_recovery_rates, get_daehn_external_copper_rate
+    get_worldsteel_recovery_rates, get_daehn_external_copper_rate, get_daehn_tolerances
 from src.calc_trade.calc_trade import get_trade
 from src.calc_trade.calc_scrap_trade import get_scrap_trade
 from src.calc_trade.calc_indirect_trade import get_indirect_trade
 from src.calc_trade.calc_trade_tools import get_imports_and_exports_from_net_trade
+from src.recycling_strategies.base_model import lower_cycle_base_model
+from src.recycling_strategies.tramp_elements import lower_cycle_tramp_elements
+from src.recycling_strategies.economic_tramp_elements import lower_cycle_econ_tramp
 from src.modelling_approaches.compute_upper_cycle import compute_upper_cycle
 
 #  constants: MFA System process IDs
@@ -25,11 +28,13 @@ FORM_PID = 3
 IP_PID = 4
 FABR_PID = 5
 USE_PID = 6
-OBS_PID = 7
-EOL_PID = 8
-RECYCLE_PID = 9
-SCRAP_PID = 10
-EXC_PID = 11
+BUF_PID = 7
+OBS_PID = 8
+EOL_PID = 9
+RECYCLE_PID = 10
+SCRAP_PID = 11
+EXC_PID = 12
+FBUF_PID = 13
 
 
 def load_simson_base_model(country_specific=False, recalculate=False, recalculate_dsms=False) -> SimDiGraph_MFAsystem:
@@ -135,11 +140,13 @@ def initiate_processes(main_model):
     add_process('Intermediate', IP_PID)
     add_process('Fabrication', FABR_PID)
     add_process('Using', USE_PID)
+    add_process('Outflow Buffer', BUF_PID)
     add_process('Obsolete Stock', OBS_PID)
     add_process('End of Life', EOL_PID)
     add_process('Recycling', RECYCLE_PID)
     add_process('Scrap Market', SCRAP_PID)
     add_process('Excess Scrap', EXC_PID)
+    add_process('Fabrication Buffer', FBUF_PID)
 
 
 def initiate_parameters(main_model):
@@ -148,6 +155,8 @@ def initiate_parameters(main_model):
     fabrication_yield = get_cullen_fabrication_yield()
     forming_yield = get_cullen_forming_yield()
     recovery_rate = get_worldsteel_recovery_rates()
+    copper_rate = get_daehn_external_copper_rate()
+    tolerances = get_daehn_tolerances()
 
     parameter_dict['Forming_Yield'] = Parameter(Name='Forming_Yield', ID=0,
                                                 P_Res=FORM_PID, MetaData=None, Indices='i',
@@ -157,7 +166,7 @@ def initiate_parameters(main_model):
                                                     P_Res=FABR_PID, MetaData=None, Indices='g',
                                                     Values=fabrication_yield, Unit='1')
 
-    parameter_dict['Recovery_Rate'] = Parameter(Name='EOL-Recycle_Distribution', ID=2,
+    parameter_dict['Recovery_Rate'] = Parameter(Name='Recovery Rate', ID=2,
                                                 P_Res=EOL_PID,
                                                 MetaData=None, Indices='g',
                                                 Values=recovery_rate, Unit='1')
@@ -165,7 +174,12 @@ def initiate_parameters(main_model):
     parameter_dict['External_Copper_Rate'] = Parameter(Name='External_Copper_Rate', ID=3,
                                                        P_Res=RECYCLE_PID,
                                                        MetaData=None, Indices='g',
-                                                       Values=recovery_rate, Unit='1')
+                                                       Values=copper_rate, Unit='1')
+
+    parameter_dict['Copper_Tolerances'] = Parameter(Name='Copper_Tolerances', ID=4,
+                                                    P_Res=IP_PID,
+                                                    MetaData=None, Indices='i',
+                                                    Values=tolerances, Unit='1')
 
     main_model.ParameterDict = parameter_dict
 
@@ -178,13 +192,15 @@ def initiate_flows(main_model):
     main_model.init_flow('EAF scaler - Forming', EAF_PID, FORM_PID, 't,e,r,s')
 
     main_model.init_flow('Forming - IP Market', FORM_PID, IP_PID, 't,e,r,i,s')
-    main_model.init_flow('Forming - Scrap', FORM_PID, SCRAP_PID, 't,e,r,s')
+    main_model.init_flow('Forming - Fabrication Buffer', FORM_PID, FBUF_PID, 't,e,r,s')
     main_model.init_flow('IP Market - Fabrication', IP_PID, FABR_PID, 't,e,r,i,s')
     main_model.init_flow('Fabrication - In-Use', FABR_PID, USE_PID, 't,e,r,g,s')
-    main_model.init_flow('Fabrication - Scrap', FABR_PID, SCRAP_PID, 't,e,r,s')
+    main_model.init_flow('Fabrication - Fabrication Buffer', FABR_PID, FBUF_PID, 't,e,r,s')
+    main_model.init_flow('Fabrication Buffer - Scrap', FBUF_PID, SCRAP_PID, 't,e,r,s')
 
-    main_model.init_flow('In-Use - Obsolete stocks', USE_PID, OBS_PID, 't,e,r,g,s')
-    main_model.init_flow('In-Use - EOL', USE_PID, EOL_PID, 't,e,r,g,s')
+    main_model.init_flow('In-Use - Outflow Buffer', USE_PID, BUF_PID, 't,e,r,g,s')
+    main_model.init_flow('Outflow Buffer - Obsolete stocks', BUF_PID, OBS_PID, 't,e,r,g,s')
+    main_model.init_flow('Outflow Buffer - EOL', BUF_PID, EOL_PID, 't,e,r,g,s')
     main_model.init_flow('EOL - Recycling', EOL_PID, RECYCLE_PID, 't,e,r,g,s')
     main_model.init_flow('Copper - Recyling', ENV_PID, RECYCLE_PID, 't,e,r,g,s')
     main_model.init_flow('Recycling - Scrap', RECYCLE_PID, SCRAP_PID, 't,e,r,g,s')
@@ -202,6 +218,8 @@ def initiate_flows(main_model):
 
 def initiate_stocks(main_model):
     main_model.add_stock(USE_PID, 'In-Use stock', 't,e,r,g,s')
+    main_model.add_stock(BUF_PID, 'Outflow Buffer', 't,e,r,g,s')
+    main_model.add_stock(FBUF_PID, 'Forming/Fabrication Buffer', 't,e,r,s')
     main_model.add_stock(OBS_PID, 'Obsolete stock', 't,e,r,g,s')
     main_model.add_stock(EXC_PID, 'Excess scrap stock', 't,e,r,s')
 
@@ -235,7 +253,7 @@ def compute_flows(model: MFAsystem, country_specific: bool,
     # Compute upper cycle
     # production, trade, forming_fabrication, fabrication_use, indirect_trade, inflows, stocks, outflows
 
-    forming_yield, fabrication_yield, recovery_rate, copper_rate = _get_params(model)
+    forming_yield, fabrication_yield, recovery_rate, copper_rate, tolerances = _get_params(model)
 
     reuse = None  # TODO: necessary?
     # TODO: Decide Reuse what to do
@@ -257,22 +275,70 @@ def compute_flows(model: MFAsystem, country_specific: bool,
 
     fabrication_scrap = np.einsum('trgs,g->trs', fabrication_use, (1 / fabrication_yield - 1))
 
-    use_eol = np.einsum('trgs,g->trgs', outflows, recovery_rate)
-    use_obsolete = outflows - use_eol
+    fabrication_buffer = np.zeros_like(fabrication_scrap)
+    fabrication_buffer[1:] = forming_scrap[:-1] + fabrication_scrap[:-1]
+    outflow_buffer = np.zeros_like(outflows)
+    outflow_buffer[1:] = outflows[:-1]
+    """
+    iron_production, scrap_in_bof, bof_production, eaf_production, use_eol, use_obsolete, scrap_imports, \
+    scrap_exports, eol_recycling, recycling_scrap, scrap_excess = \
+        _compute_lower_cycle(country_specific, outflow_buffer, recovery_rate, copper_rate, production, forming_yield,
+                             forming_intermediate, imports, exports, intermediate_fabrication, fabrication_use,
+                             indirect_imports, indirect_exports,
+                             max_scrap_share_in_production, forming_scrap, fabrication_scrap)"""
+
+    production_by_intermediate = np.einsum('tris,i->tris', forming_intermediate, 1 / forming_yield)
+
+    cu_recycling_scrap, cu_scrap_production, cu_production, cu_production_by_intermediate, \
+    cu_forming_intermediate, cu_forming_scrap, cu_imports, cu_exports, cu_forming_fabrication, \
+    cu_fabrication_scrap, cu_fabrication_use, cu_indirect_imports, cu_indirect_exports, \
+    cu_inflows, cu_stocks, cu_outflows, cu_buffer, cu_fabrication_buffer, \
+    cu_buffer_eol, cu_scrap_exports, cu_scrap_imports, cu_eol_recycling, \
+    cu_available_scrap, cu_tolerated = \
+        _create_cu_flows(production, fabrication_use, forming_intermediate)
+
+    buffer_eol = np.einsum('trgs,g->trgs', outflow_buffer, recovery_rate)
+    buffer_obsolete = outflow_buffer - buffer_eol
 
     scrap_imports, scrap_exports = get_scrap_trade(country_specific=country_specific,
-                                                   available_scrap_by_category=use_eol)
+                                                   available_scrap_by_category=buffer_eol)
 
-    total_eol_scrap = use_eol + scrap_imports - scrap_exports
+    total_eol_scrap = buffer_eol + scrap_imports - scrap_exports
     scrap_is_positive = np.all(total_eol_scrap >= 0)
     if not scrap_is_positive:
         raise RuntimeError('Scrap is not positive')
     eol_recycling = total_eol_scrap
     recycling_scrap = total_eol_scrap
     cu_external = np.einsum('trgs,g->trgs', eol_recycling, copper_rate)
-    max_scrap_in_production = production * max_scrap_share_in_production
-    available_scrap = np.sum(recycling_scrap, axis=2) + forming_scrap + fabrication_scrap
-    scrap_in_production = np.minimum(available_scrap, max_scrap_in_production)
+    available_scrap = np.sum(recycling_scrap, axis=2) + fabrication_buffer
+    scrap_in_production = np.zeros_like(production)
+    scrap_used_rate = np.zeros_like(production)
+
+    for t in range(1, 201):
+        cu_buffer[t] = cu_outflows[t - 1]
+        cu_fabrication_buffer[t] = cu_forming_scrap[t - 1] + cu_fabrication_scrap[t - 1]
+        cu_buffer_eol[t] = np.einsum('rgs,g->rgs', cu_buffer[t], recovery_rate)
+        cu_scrap_imports[t], cu_scrap_exports[t] = _calc_cu_scrap_trade(cu_buffer_eol[t], buffer_eol[t],
+                                                                        scrap_imports[t], scrap_exports[t])
+        cu_total_eol_scrap_t = cu_buffer_eol[t] + cu_scrap_imports[t] - cu_scrap_exports[t]
+        cu_eol_recycling[t] = cu_total_eol_scrap_t
+        cu_recycling_scrap[t] = cu_total_eol_scrap_t + cu_external[t]
+        cu_available_scrap[t] = cu_fabrication_buffer[t] + np.sum(cu_recycling_scrap[t], axis=1)
+        if cfg.recycling_strategy == 'tramp':
+            cu_tolerated_t = np.einsum('ris,i->rs', production_by_intermediate[t], tolerances)
+            cu_scrap_production[t] = np.minimum(cu_available_scrap[t], cu_tolerated_t)
+
+            scrap_used_rate[t] = np.divide(cu_scrap_production[t], cu_available_scrap[t],
+                                           out=np.zeros_like(cu_scrap_production[t]),
+                                           where=cu_available_scrap[t] != 0)
+            scrap_in_production[t] = available_scrap[t] * scrap_used_rate[t]
+        elif cfg.recycling_strategy == 'base':
+            max_scrap_in_production_t = production[t] * max_scrap_share_in_production[t]
+            scrap_in_production[t] = np.minimum(available_scrap[t], max_scrap_in_production_t)
+            scrap_used_rate[t] = np.divide(scrap_in_production[t], available_scrap[t],
+                                           out=np.zeros_like(scrap_in_production[t]),
+                                           where=available_scrap[t] != 0)
+            cu_scrap_production[t] = cu_available_scrap[t] * scrap_used_rate[t]
 
     scrap_share = np.divide(scrap_in_production, production,
                             out=np.zeros_like(scrap_in_production), where=production != 0)
@@ -288,10 +354,42 @@ def compute_flows(model: MFAsystem, country_specific: bool,
 
     edit_flows(model, iron_production, scrap_in_bof, bof_production, eaf_production, forming_intermediate,
                intermediate_fabrication, forming_scrap, imports, exports, fabrication_use, indirect_imports,
-               indirect_exports, reuse, fabrication_scrap, use_eol, use_obsolete, scrap_imports, scrap_exports,
-               eol_recycling, recycling_scrap, scrap_excess)
+               indirect_exports, reuse, fabrication_scrap, outflows, buffer_eol, buffer_obsolete, scrap_imports,
+               scrap_exports, eol_recycling, recycling_scrap, scrap_excess, fabrication_buffer)
 
     return inflows, outflows
+
+
+def _calc_cu_scrap_trade(cu_buffer_eol, buffer_eol, scrap_imports, scrap_exports):
+    export_share = np.divide(scrap_exports, buffer_eol, out=np.zeros_like(scrap_exports), where=buffer_eol != 0)
+    cu_scrap_exports = export_share * cu_buffer_eol
+    cu_global_exports = np.sum(cu_scrap_exports, axis=0)
+
+    global_imports = np.sum(scrap_imports, axis=0)
+    inv_global_imports = np.divide(1, global_imports, out=np.zeros_like(global_imports), where=global_imports != 0)
+    import_share = np.einsum('rgs,gs->rgs', scrap_imports, inv_global_imports)
+    cu_scrap_imports = np.einsum('rgs,gs->rgs', import_share, cu_global_exports)
+    return cu_scrap_imports, cu_scrap_exports
+
+
+def _compute_lower_cycle(country_specific, outflows, recovery_rate, copper_rate, production, forming_yield,
+                         forming_intermediate, imports, exports, intermediate_fabrication, fabrication_use,
+                         indirect_imports, indirect_exports,
+                         max_scrap_share_in_production, forming_scrap, fabrication_scrap):
+    lower_cycle_function = None
+    if cfg.recycling_strategy == 'base':
+        lower_cycle_function = lower_cycle_base_model
+    elif cfg.recycling_strategy == 'tramp':
+        lower_cycle_function = lower_cycle_tramp_elements
+    elif cfg.recycling_strategy == 'econ':
+        lower_cycle_function = lower_cycle_econ_tramp
+    else:
+        raise RuntimeError(f'Recycling strategy {cfg.recycling_strategy} is not defined.')
+
+    return lower_cycle_function(country_specific, outflows, recovery_rate, copper_rate, production, forming_yield,
+                                forming_intermediate, imports, exports, intermediate_fabrication, fabrication_use,
+                                indirect_imports, indirect_exports,
+                                max_scrap_share_in_production, forming_scrap, fabrication_scrap)
 
 
 def compute_upper_cycle_modelling_approaches():
@@ -329,26 +427,28 @@ def compute_upper_cycle_base_model(country_specific, inflows, outflows, fabricat
 
 def edit_flows(model, iron_production, scrap_in_bof, bof_production, eaf_production, forming_intermediate,
                intermediate_fabrication, forming_scrap, imports, exports, fabrication_use, indirect_imports,
-               indirect_exports, reuse, fabrication_scrap, use_eol, use_obsolete, scrap_imports, scrap_exports,
-               eol_recycling, recycling_scrap, scrap_excess):
+               indirect_exports, reuse, fabrication_scrap, outflows, buffer_eol, buffer_obsolete, scrap_imports,
+               scrap_exports, eol_recycling, recycling_scrap, scrap_excess, fabrication_buffer):
     model.get_flowV(ENV_PID, BOF_PID)[:, 0] = iron_production
     model.get_flowV(SCRAP_PID, BOF_PID)[:, 0] = scrap_in_bof
     model.get_flowV(BOF_PID, FORM_PID)[:, 0] = bof_production
     model.get_flowV(SCRAP_PID, EAF_PID)[:, 0] = eaf_production
     model.get_flowV(EAF_PID, FORM_PID)[:, 0] = eaf_production
     model.get_flowV(FORM_PID, IP_PID)[:, 0] = forming_intermediate
-    model.get_flowV(FORM_PID, SCRAP_PID)[:, 0] = forming_scrap
+    model.get_flowV(FORM_PID, FBUF_PID)[:, 0] = forming_scrap
     model.get_flowV(ENV_PID, IP_PID)[:, 0] = imports
     model.get_flowV(IP_PID, ENV_PID)[:, 0] = exports
     model.get_flowV(IP_PID, FABR_PID)[:, 0] = intermediate_fabrication
     model.get_flowV(FABR_PID, USE_PID)[:, 0] = fabrication_use
-    model.get_flowV(FABR_PID, SCRAP_PID)[:, 0] = fabrication_scrap
+    model.get_flowV(USE_PID, BUF_PID)[:, 0] = outflows
+    model.get_flowV(FABR_PID, FBUF_PID)[:, 0] = fabrication_scrap
+    model.get_flowV(FBUF_PID, SCRAP_PID)[:, 0] = fabrication_buffer
     model.get_flowV(ENV_PID, USE_PID)[:, 0] = indirect_imports
     model.get_flowV(USE_PID, ENV_PID)[:, 0] = indirect_exports
     if reuse is not None:
         model.get_flowV(USE_PID, USE_PID)[:, 0] = reuse
-    model.get_flowV(USE_PID, EOL_PID)[:, 0] = use_eol
-    model.get_flowV(USE_PID, OBS_PID)[:, 0] = use_obsolete
+    model.get_flowV(BUF_PID, EOL_PID)[:, 0] = buffer_eol
+    model.get_flowV(BUF_PID, OBS_PID)[:, 0] = buffer_obsolete
     model.get_flowV(ENV_PID, EOL_PID)[:, 0] = scrap_imports
     model.get_flowV(EOL_PID, ENV_PID)[:, 0] = scrap_exports
     model.get_flowV(EOL_PID, RECYCLE_PID)[:, 0] = eol_recycling
@@ -362,8 +462,9 @@ def _get_params(model):
     fabrication_yield = params['Fabrication_Yield'].Values
     recovery_rate = params['Recovery_Rate'].Values
     copper_rate = params['External_Copper_Rate'].Values
+    tolerances = params['Copper_Tolerances'].Values
 
-    return forming_yield, fabrication_yield, recovery_rate, copper_rate
+    return forming_yield, fabrication_yield, recovery_rate, copper_rate, tolerances
 
 
 def _calc_eaf_share_production(scrap_share):
@@ -380,18 +481,64 @@ def _calc_max_scrap_share(scrap_share_in_production, n_regions):
     return max_scrap_share_in_production
 
 
+def _create_cu_flows(production, fabrication_use, forming_intermediate):
+    cu_recycling_scrap = np.zeros_like(fabrication_use)
+    cu_scrap_production = np.zeros_like(production)
+    cu_production = np.zeros_like(production)
+    cu_production_by_intermediate = np.zeros_like(forming_intermediate)
+    cu_forming_intermediate = np.zeros_like(forming_intermediate)
+    cu_forming_scrap = np.zeros_like(production)
+    cu_imports = np.zeros_like(forming_intermediate)
+    cu_exports = np.zeros_like(forming_intermediate)
+    cu_forming_fabrication = np.zeros_like(forming_intermediate)
+    cu_fabrication_scrap = np.zeros_like(production)
+    cu_fabrication_use = np.zeros_like(fabrication_use)
+    cu_indirect_imports = np.zeros_like(fabrication_use)
+    cu_indirect_exports = np.zeros_like(fabrication_use)
+    cu_inflows = np.zeros_like(fabrication_use)
+    cu_stocks = np.zeros_like(fabrication_use)
+    cu_outflows = np.zeros_like(fabrication_use)
+    cu_buffer = np.zeros_like(fabrication_use)
+    cu_fabrication_buffer = np.zeros_like(production)
+    cu_buffer_eol = np.zeros_like(fabrication_use)
+    cu_scrap_exports = np.zeros_like(fabrication_use)
+    cu_scrap_imports = np.zeros_like(fabrication_use)
+    cu_eol_recycling = np.zeros_like(fabrication_use)
+    cu_available_scrap = np.zeros_like(production)
+    cu_tolerated = np.zeros_like(production)
+
+    return cu_recycling_scrap, cu_scrap_production, cu_production, cu_production_by_intermediate, \
+           cu_forming_intermediate, cu_forming_scrap, cu_imports, cu_exports, cu_forming_fabrication, \
+           cu_fabrication_scrap, cu_fabrication_use, cu_indirect_imports, cu_indirect_exports, \
+           cu_inflows, cu_stocks, cu_outflows, cu_buffer, cu_fabrication_buffer, \
+           cu_buffer_eol, cu_scrap_exports, cu_scrap_imports, cu_eol_recycling, \
+           cu_available_scrap, cu_tolerated
+
+
 def compute_stocks(model, inflows, outflows):
     in_use_stock_change = model.get_stock_changeV(USE_PID)
     in_use_stock_change[:, 0, :, :] = inflows - outflows
     model.calculate_stock_values_from_stock_change(USE_PID)
 
-    use_obsolete = model.get_flowV(USE_PID, OBS_PID)
+    use_obsolete = model.get_flowV(BUF_PID, OBS_PID)
     model.get_stock_changeV(OBS_PID)[:] = use_obsolete
     model.calculate_stock_values_from_stock_change(OBS_PID)
 
     scrap_excess = model.get_flowV(SCRAP_PID, EXC_PID)
     model.get_stock_changeV(EXC_PID)[:] = scrap_excess
     model.calculate_stock_values_from_stock_change(EXC_PID)
+
+    # Buffers
+
+    buf_stock_change = model.get_stock_changeV(BUF_PID)
+    buf_stock_change[:, 0] = outflows
+    buf_stock_change[1:, 0] -= outflows[:-1]
+    model.calculate_stock_values_from_stock_change(BUF_PID)
+
+    total_production_scrap = model.get_flowV(FORM_PID, FBUF_PID) + model.get_flowV(FABR_PID, FBUF_PID)
+    f_buf_stock_change = model.get_stock_changeV(FBUF_PID)
+    f_buf_stock_change[:] = total_production_scrap
+    f_buf_stock_change[1:] -= total_production_scrap[:-1]
 
     return model
 

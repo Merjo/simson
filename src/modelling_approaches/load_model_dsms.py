@@ -10,7 +10,6 @@ from src.base_model.model_tools import calc_change_timeline
 
 def load_model_dsms(country_specific, do_past_not_future, model_type=cfg.model_type, do_econ_model=cfg.do_model_economy,
                     recalculate=cfg.recalculate_data, production=None, trade=None, indirect_trade=None):
-    recalculate = True  # TODO delete
     file_name = _get_dsms_file_name(country_specific, do_past_not_future, model_type, do_econ_model)
     file_path = os.path.join(cfg.data_path, 'models', file_name)
     if os.path.exists(file_path) and not recalculate:
