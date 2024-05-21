@@ -34,7 +34,7 @@ def get_cullen_production_yield():
 def get_daehn_tolerances():
     tolerances_path = os.path.join(DAEHN_PATH, 'cu_tolerances_ip.csv')
     tolerances = _load_normal_param_csv(tolerances_path)
-    tolerances /= 100  # tolerances are given in %, hence 0.3 denotes 0.3 % not 30 %
+    tolerances /= 100  # tolerances are given in %, hence e.g. 0.3 denotes 0.3 % not 30 %
     return tolerances
 
 
@@ -54,6 +54,7 @@ def get_daehn_good_intermediate_distribution():
 def get_daehn_external_copper_rate():
     copper_rate_path = os.path.join(DAEHN_PATH, 'daehn_external_copper_rate.csv')
     copper_rate = _load_normal_param_csv(copper_rate_path)
+    copper_rate /= 100  # copper rate is given in %, hence e.g. 0.3 denotes 0.3 % not 30 %
     return copper_rate
 
 

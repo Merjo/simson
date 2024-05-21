@@ -59,10 +59,10 @@ def _calc_inflows_via_sector_splits(production, trade, indirect_trade, mean, std
 
     sector_splits = get_region_sector_splits()[:123]  # TODO: country?
 
-    direct_trade_in_goods = _distribute_intermediate_good(trade, 'tri', gi_distribution)
+    direct_trade_in_goods = distribute_intermediate_good(trade, 'tri', gi_distribution)
     agg_trade = np.einsum('trg,g->trg', direct_trade_in_goods, fabrication_yield) + indirect_trade
 
-    lifetime_matrix = _calc_lifetime_matrix(mean, std_dev)
+    lifetime_matrix = calc_lifetime_matrix(mean, std_dev)
     l = np.einsum('trd,turg->turgd', sector_splits, 1 - lifetime_matrix)  # here 'u' denotes t_dash / t'
     d_0_dividend = l[0, 0]
     d_0 = np.einsum('rgd,rdg->rgd', d_0_dividend, 1 / d_0_dividend)
@@ -79,7 +79,7 @@ def _calc_inflows_via_sector_splits(production, trade, indirect_trade, mean, std
     x_0 = _transform_x_from_g_to_i(x_0, production[0], big_Y, fabrication_yield, gi_distribution, forming_yield)
 
     i_0_prep = np.einsum('r,ri,i->ri', production[0], x_0, forming_yield)
-    i_0_prep = _distribute_intermediate_good(i_0_prep, 'ri')
+    i_0_prep = distribute_intermediate_good(i_0_prep, 'ri')
     i_0 = np.einsum('rg,g->rg', i_0_prep, fabrication_yield) + agg_trade[0]
 
     inflows = np.zeros_like(indirect_trade)
@@ -119,7 +119,7 @@ def _calc_inflows_via_sector_splits(production, trade, indirect_trade, mean, std
         production_sector_split[t] = x_t
 
         i_t_prep = np.einsum('r,ri,i->ri', p, x_t, forming_yield)
-        i_t_prep = _distribute_intermediate_good(i_t_prep, 'ri')
+        i_t_prep = distribute_intermediate_good(i_t_prep, 'ri')
         i_t = np.einsum('rg,g->rg', i_t_prep, fabrication_yield) + at
 
         inflows[t] = i_t
@@ -216,22 +216,22 @@ def _transform_x_from_g_to_i(x, production, big_Y, fabrication_yield, gi_distrib
     p_x = np.einsum('rg,g,gi,i->ri', fabrication, 1 / fabrication_yield, gi_distribution, 1 / forming_yield)
     x_result = np.einsum('ri,r->ri', p_x, 1 / np.sum(p_x, axis=1))
 
-    i_0_prep = np.einsum('r,ri,i->ri', production, x_result, forming_yield)
     return x_result
 
 
-def _distribute_intermediate_good(data: np.ndarray, dimensions: str, gi_distribution=None, do_test=True):  # TODO test?
+def distribute_intermediate_good(data: np.ndarray, dimensions: str, gi_distribution=None, do_test=True):  # TODO test?
     if gi_distribution is None:
         gi_distribution = get_daehn_good_intermediate_distribution()
     # choose linked IP categories
-    result = data.transpose()
+    i_index = dimensions.index('i')
+    result = np.moveaxis(data, i_index, 0)
     result = np.array([result[12] / gi_distribution[0, 12],
                        result[6] / gi_distribution[1, 6],
                        result[1] / gi_distribution[2, 1],
                        result[2] / gi_distribution[3, 2]])
-    result = result.transpose()
+    result = np.moveaxis(result, 0, i_index)
     if do_test:
-        new_dimensions = dimensions[:-1] + 'g'
+        new_dimensions = dimensions[:i_index] + 'g' + dimensions[i_index + 1:]
         reverse_data = np.einsum(f'{new_dimensions},gi->{dimensions}', result, gi_distribution)
         comparison = data - reverse_data
         test_passed = np.all(comparison < 1)
@@ -240,9 +240,9 @@ def _distribute_intermediate_good(data: np.ndarray, dimensions: str, gi_distribu
     return result
 
 
-def _calc_lifetime_matrix(mean, std_dev):
-    t = np.arange(0, 123)
-    t_dash = np.arange(0, 123)
+def calc_lifetime_matrix(mean, std_dev, n_years=123):
+    t = np.arange(0, n_years)
+    t_dash = np.arange(0, n_years)
     t_matrix = np.subtract.outer(t, t_dash)
     regions = load_region_names_list()
     n_regions = len(regions)
