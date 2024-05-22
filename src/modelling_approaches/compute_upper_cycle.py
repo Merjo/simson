@@ -30,10 +30,12 @@ def compute_upper_cycle(model_type=cfg.model_type, country_specific=False):  # d
     past_fabrication_use = _add_scenario_dimension(past_fabrication_use)
     past_indirect_trade = _add_scenario_dimension(past_indirect_trade)
 
+    do_econ_model = cfg.recycling_strategy == 'econ'
     future_dsms = load_model_dsms(country_specific=country_specific,
                                   do_past_not_future=False,
                                   model_type=model_type,
-                                  do_econ_model=False,  # TODO: decide whether to implement here or in econ model
+                                  do_econ_model=do_econ_model,
+                                  # TODO: decide whether to implement here or in econ model
                                   recalculate=False)  # TODO: change, only leave for now
 
     inflows, stocks, outflows = get_dsm_data(future_dsms)

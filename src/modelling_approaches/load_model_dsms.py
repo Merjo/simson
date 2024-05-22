@@ -6,6 +6,7 @@ from src.predict.calc_steel_stocks import get_np_steel_stocks_with_prediction
 from src.odym_extension.MultiDim_DynamicStockModel import MultiDim_DynamicStockModel
 from src.read_data.load_data import load_lifetimes
 from src.base_model.model_tools import calc_change_timeline
+from src.economic_model.econ_model_tools import get_steel_prices
 
 
 def load_model_dsms(country_specific, do_past_not_future, model_type=cfg.model_type, do_econ_model=cfg.do_model_economy,
@@ -77,7 +78,7 @@ def _get_dsms(country_specific, do_past_not_future, model_type, do_econ_model, p
 def _calc_future_dsms(country_specific, model_type, production, trade, indirect_trade, do_econ_model):
     past_dsms = load_model_dsms(country_specific, do_past_not_future=True, model_type=model_type,
                                 production=production, trade=trade, indirect_trade=indirect_trade,
-                                do_econ_model=do_econ_model)
+                                do_econ_model=False)
     # TODO check logic, is forming_fabrication and indirect_trade really necessary?
     # TODO (any use-case where that won't be already available?)
 
@@ -102,9 +103,26 @@ def _calc_future_dsms(country_specific, model_type, production, trade, indirect_
                                        lt_mean=lifetime_means,
                                        lt_sd=lifetime_sds)
 
-    # Note: future stocks might change if inflow is changed
+    if do_econ_model:
+        future_dsms = load_econ_dsms(future_dsms)
 
     return future_dsms
+
+
+def load_econ_dsms(dsms):
+    p_steel = get_steel_prices()
+    p_0_st = p_steel[0]
+    factor = (p_steel / p_0_st) ** cfg.elasticity_steel
+    for region_dsms in dsms:
+        for category_dsms in region_dsms:
+            for scenario_idx, scenario_dsm in enumerate(category_dsms):
+                scenario_dsm.i[cfg.econ_base_year - cfg.start_year + 1:] *= factor[:, scenario_idx]
+                new_scenario_dsm = MultiDim_DynamicStockModel(t=scenario_dsm.t,
+                                                              i=scenario_dsm.i,
+                                                              lt=scenario_dsm.lt)
+                new_scenario_dsm.compute_all_inflow_driven()
+                scenario_dsm.copy_dsm_values(new_scenario_dsm)
+    return dsms
 
 
 def get_stock_based_dsms(stocks, start_year, end_year, do_scenarios, lt_mean=None, lt_sd=None):
