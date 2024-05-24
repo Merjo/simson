@@ -1,7 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from src.base_model.simson_base_model import load_simson_base_model, ENV_PID, BOF_PID, EAF_PID, FORM_PID, FABR_PID, \
-    USE_PID, SCRAP_PID, RECYCLE_PID, WASTE_PID, DISNOTCOL_PID
+from src.base_model.simson_base_model import load_simson_base_model, ENV_PID, BOF_PID, EAF_PID, FORM_PID, IP_PID, \
+    FABR_PID, USE_PID, BUF_PID, OBS_PID, EOL_PID, RECYCLE_PID, SCRAP_PID, EXC_PID, FBUF_PID
 from src.tools.config import cfg
 from src.read_data.load_data import load_region_names_list
 from src.economic_model.simson_econ_model import load_simson_econ_model

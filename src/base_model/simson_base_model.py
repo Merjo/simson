@@ -330,6 +330,9 @@ def compute_flows(model: MFAsystem, country_specific: bool,
         scrap_in_production = np.zeros_like(production)
         r_0_recov_g = recovery_rate
         ip_tlrc_i = copper_rate
+
+        s_cu_alloy_g = np.einsum('gi,i->g', gi_distribution, copper_rate) * 0.8
+
         for t in range(1, 201):
             q_st = production[t]
             q_eol_g = outflow_buffer[t]
@@ -338,7 +341,7 @@ def compute_flows(model: MFAsystem, country_specific: bool,
             p_0_st = initial_price
 
             q_pr_st, q_se_st, r_recov_g, s_cu_g = calc_tramp_econ_model_one_year(q_st, q_eol_g, t_eol_g, p_0_st, p_st,
-                                                                                 r_0_recov_g, ip_tlrc_i)
+                                                                                 r_0_recov_g, ip_tlrc_i, s_cu_alloy_g)
 
     else:
         buffer_eol = np.einsum('trgs,g->trgs', outflow_buffer, recovery_rate)
