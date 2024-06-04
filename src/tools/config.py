@@ -27,7 +27,7 @@ class Config:
         self.end_year = 2100
 
         self.curve_strategy = 'Duerrwaechter'  # Options: Pauliuk, Pehl, Duerrwaechter, LSTM
-        self.recycling_strategy = 'tramp'  # Options: base, tramp, econ  # TODO:  Implement tramp + econ
+        self.recycling_strategy = 'econ'  # Options: base, tramp, econ  # TODO:  Implement tramp + econ
         self.steel_data_source = 'IEDatabase'  # Options: Mueller, IEDatabase, ScrapAge
         self.pop_data_source = 'UN'  # Options: UN, KC-Lutz (only for scenarios)
         self.gdp_data_source = 'Koch-Leimbach'  # Options: IMF, Koch-Leimbach (only for scenarios)
@@ -87,12 +87,12 @@ class Config:
         self.r_free_recov = 0
         self.r_free_diss = 0
 
-        self.steel_price_change_by_scenario = [0.5, 0.1, 0.2, 0, -0.3]
-        # e.g. 0.5 or [50,10,20,0,-30] for all scenarios. 50 e.g. indicates a 50 % increase of the steel
+        self.steel_price_change_by_scenario = [0.5, 0.1, 0.2, 0, 0.3]
+        # e.g. 0.5 or [50,10,20,0,30] for all scenarios. 50 e.g. indicates a 50 % increase of the steel
 
         self.do_change_inflow = False
         self.inflow_change_base_year = 2023
-        self.inflow_change_by_scenario = [-0.2, 0, 0.1, 0.2, 0.3]
+        self.inflow_change_by_scenario = [-0.2, 0, 0.1, 0.2, 0.1]
         self.inflow_change_by_category = [-0.2, 0, 0, 0]
 
         self.do_change_reuse = False

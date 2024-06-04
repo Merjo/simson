@@ -21,7 +21,7 @@ from src.recycling_strategies.economic_tramp_elements import lower_cycle_econ_tr
 from src.modelling_approaches.compute_upper_cycle import compute_upper_cycle
 from src.modelling_approaches.model_1_inflow_driven import distribute_intermediate_good, calc_lifetime_matrix
 from src.read_data.load_data import load_lifetimes
-from src.base_model.tramp_econ_model import calc_tramp_econ_model_one_year
+from src.base_model.tramp_econ_model import calc_tramp_econ_model
 from src.economic_model.econ_model_tools import get_steel_prices
 
 #  constants: MFA System process IDs
@@ -309,131 +309,129 @@ def compute_flows(model: MFAsystem, country_specific: bool,
     cu_iron_production, cu_bof_production, cu_eaf_production, cu_scrap_in_bof = \
         _create_cu_flows(production, fabrication_use, forming_intermediate)
 
-    if cfg.recycling_strategy == 'econ':
+    do_econ_model = cfg.recycling_strategy == 'econ'
+    if do_econ_model:
         q_st = production_by_intermediate
         q_eol = outflow_buffer
         prices = get_steel_prices()  # TODO: change to REMIND dataset
         initial_price = prices[0]
-
-        # ignore S reuse for now!
         scrap_imports, scrap_exports = get_scrap_trade(country_specific=country_specific,
                                                        available_scrap_by_category=q_eol)
         # TODO: note - in  econ model, scrpa trade is scaled by BUFFER not available scrap after recycling as this
         #  shall be calculated via the econ moddle
 
-        buffer_eol = np.zeros_like(outflow_buffer)
-        buffer_obsolete = np.zeros_like(outflow_buffer)
-        total_eol_scrap = np.zeros_like(outflow_buffer)
-        eol_recycling = np.zeros_like(outflow_buffer)
-        recycling_scrap = np.zeros_like(outflow_buffer)
-        available_scrap = np.zeros_like(production)
-        scrap_in_production = np.zeros_like(production)
         r_0_recov_g = recovery_rate
-        ip_tlrc_i = copper_rate
+        ip_tlrc_i = tolerances
 
         s_cu_alloy_g = np.einsum('gi,i->g', gi_distribution, copper_rate) * 0.8
 
-        for t in range(1, 201):
-            q_st = production[t]
-            q_eol_g = outflow_buffer[t]
-            t_eol_g = scrap_imports[t] - scrap_exports[t]
-            p_st = prices[t]
-            p_0_st = initial_price
+        t_eol_g = scrap_imports - scrap_exports
+        p_st = prices
+        p_0_st = initial_price
 
-            q_pr_st, q_se_st, r_recov_g, s_cu_g = calc_tramp_econ_model_one_year(q_st, q_eol_g, t_eol_g, p_0_st, p_st,
-                                                                                 r_0_recov_g, ip_tlrc_i, s_cu_alloy_g)
+        q_pr_st, q_se_st, recovery_rate, copper_rate = calc_tramp_econ_model(q_st, q_eol, t_eol_g, p_0_st,
+                                                                             p_st,
+                                                                             r_0_recov_g, ip_tlrc_i,
+                                                                             s_cu_alloy_g)
 
-    else:
-        buffer_eol = np.einsum('trgs,g->trgs', outflow_buffer, recovery_rate)
-        buffer_obsolete = outflow_buffer - buffer_eol
+    recovery_and_copper_rate_dims = 'trgs' if do_econ_model else 'g'
+    buffer_eol = np.einsum(f'trgs,{recovery_and_copper_rate_dims}->trgs', outflow_buffer, recovery_rate)
+    buffer_obsolete = outflow_buffer - buffer_eol
 
+    if not do_econ_model:
         scrap_imports, scrap_exports = get_scrap_trade(country_specific=country_specific,
                                                        available_scrap_by_category=buffer_eol)
 
-        total_eol_scrap = buffer_eol + scrap_imports - scrap_exports
-        scrap_is_positive = np.all(total_eol_scrap >= 0)
-        if not scrap_is_positive:
-            raise RuntimeError('Scrap is not positive')
-        eol_recycling = total_eol_scrap
-        recycling_scrap = total_eol_scrap
-        cu_external = np.einsum('trgs,g->trgs', eol_recycling, copper_rate)
-        available_scrap = np.sum(recycling_scrap, axis=2) + fabrication_buffer
-        scrap_in_production = np.zeros_like(production)
-        scrap_used_rate = np.zeros_like(production)
+    total_eol_scrap = buffer_eol + scrap_imports - scrap_exports
+    scrap_is_positive = np.all(total_eol_scrap >= 0)
+    if not scrap_is_positive:
+        raise RuntimeError('Scrap is not positive')
+    eol_recycling = total_eol_scrap
+    recycling_scrap = total_eol_scrap
+    cu_external = np.einsum(f'trgs,{recovery_and_copper_rate_dims}->trgs', eol_recycling, copper_rate)
+    available_scrap = np.sum(recycling_scrap, axis=2) + fabrication_buffer
+    scrap_in_production = np.zeros_like(production)
+    scrap_used_rate = np.zeros_like(production)
 
-        intermediate_fabrication_by_ig = np.einsum('trgs,g,gi->trigs', fabrication_use,
-                                                   1 / fabrication_yield, gi_distribution)
-        intermediate_fabrication_sum = np.sum(intermediate_fabrication_by_ig, axis=3)
-        intermediate_fabrication_divisor = np.divide(1, intermediate_fabrication_sum,
-                                                     out=np.zeros_like(intermediate_fabrication_sum),
-                                                     where=intermediate_fabrication_sum != 0)
-        intermediate_fabrication_ig_share = np.einsum('trigs,tris->trigs',
-                                                      intermediate_fabrication_by_ig,
-                                                      intermediate_fabrication_divisor)
-        mean, std_dev = load_lifetimes()
-        lifetime_matrix = calc_lifetime_matrix(mean, std_dev, n_years=201)
+    intermediate_fabrication_by_ig = np.einsum('trgs,g,gi->trigs', fabrication_use,
+                                               1 / fabrication_yield, gi_distribution)
+    intermediate_fabrication_sum = np.sum(intermediate_fabrication_by_ig, axis=3)
+    intermediate_fabrication_divisor = np.divide(1, intermediate_fabrication_sum,
+                                                 out=np.zeros_like(intermediate_fabrication_sum),
+                                                 where=intermediate_fabrication_sum != 0)
+    intermediate_fabrication_ig_share = np.einsum('trigs,tris->trigs',
+                                                  intermediate_fabrication_by_ig,
+                                                  intermediate_fabrication_divisor)
+    mean, std_dev = load_lifetimes()
+    lifetime_matrix = calc_lifetime_matrix(mean, std_dev, n_years=201)
 
-        for t in range(1, 201):
-            cu_buffer[t] = cu_outflows[t - 1]
-            cu_fabrication_buffer[t] = cu_forming_scrap[t - 1] + cu_fabrication_scrap[t - 1]
-            cu_buffer_eol[t] = np.einsum('rgs,g->rgs', cu_buffer[t], recovery_rate)
-            cu_scrap_imports[t], cu_scrap_exports[t] = _calc_cu_trade(cu_buffer_eol[t], buffer_eol[t],
-                                                                      scrap_imports[t], scrap_exports[t])
-            cu_total_eol_scrap_t = cu_buffer_eol[t] + cu_scrap_imports[t] - cu_scrap_exports[t]
-            cu_eol_recycling[t] = cu_total_eol_scrap_t
-            cu_recycling_scrap[t] = cu_total_eol_scrap_t + cu_external[t]
-            cu_available_scrap[t] = cu_fabrication_buffer[t] + np.sum(cu_recycling_scrap[t], axis=1)
-            cu_tolerated[t] = np.einsum('ris,i->ris', production_by_intermediate[t], tolerances)
-            cu_tolerated_sum_t = np.sum(cu_tolerated[t], axis=1)
-            if cfg.recycling_strategy == 'tramp':
-                cu_scrap_in_production[t] = np.minimum(cu_available_scrap[t], cu_tolerated_sum_t)
-                scrap_used_rate[t] = np.divide(cu_scrap_in_production[t], cu_available_scrap[t],
-                                               out=np.zeros_like(cu_scrap_in_production[t]),
-                                               where=cu_available_scrap[t] != 0)
-                scrap_in_production[t] = available_scrap[t] * scrap_used_rate[t]
-            elif cfg.recycling_strategy == 'base':
+    for t in range(1, 201):
+        cu_buffer[t] = cu_outflows[t - 1]
+        cu_fabrication_buffer[t] = cu_forming_scrap[t - 1] + cu_fabrication_scrap[t - 1]
+        cu_buffer_eol[t] = np.einsum('rgs,g->rgs', cu_buffer[t], recovery_rate)
+        cu_scrap_imports[t], cu_scrap_exports[t] = _calc_cu_trade(cu_buffer_eol[t], buffer_eol[t],
+                                                                  scrap_imports[t], scrap_exports[t])
+        cu_total_eol_scrap_t = cu_buffer_eol[t] + cu_scrap_imports[t] - cu_scrap_exports[t]
+        cu_eol_recycling[t] = cu_total_eol_scrap_t
+        cu_recycling_scrap[t] = cu_total_eol_scrap_t + cu_external[t]
+        cu_available_scrap[t] = cu_fabrication_buffer[t] + np.sum(cu_recycling_scrap[t], axis=1)
+        cu_tolerated[t] = np.einsum('ris,i->ris', production_by_intermediate[t], tolerances)
+        cu_tolerated_sum_t = np.sum(cu_tolerated[t], axis=1)
+        if cfg.recycling_strategy == 'tramp':
+            cu_scrap_in_production[t] = np.minimum(cu_available_scrap[t], cu_tolerated_sum_t)
+            scrap_used_rate[t] = np.divide(cu_scrap_in_production[t], cu_available_scrap[t],
+                                           out=np.zeros_like(cu_scrap_in_production[t]),
+                                           where=cu_available_scrap[t] != 0)
+            scrap_in_production[t] = available_scrap[t] * scrap_used_rate[t]
+        else:
+            if cfg.recycling_strategy == 'base':
                 max_scrap_in_production_t = production[t] * max_scrap_share_in_production[t]
                 scrap_in_production[t] = np.minimum(available_scrap[t], max_scrap_in_production_t)
-                scrap_used_rate[t] = np.divide(scrap_in_production[t], available_scrap[t],
-                                               out=np.zeros_like(scrap_in_production[t]),
-                                               where=available_scrap[t] != 0)
-                cu_scrap_in_production[t] = cu_available_scrap[t] * scrap_used_rate[t]
-            cu_tolerated_share_t = np.divide(cu_scrap_in_production[t], cu_tolerated_sum_t,
-                                             out=np.zeros_like(cu_scrap_in_production[t]),
-                                             where=cu_tolerated_sum_t != 0)
-            cu_scrap_production_intermediate_t = np.einsum('ris,rs->ris', cu_tolerated[t], cu_tolerated_share_t)
+            elif cfg.recycling_strategy == 'econ':
+                scrap_in_production[t] = np.minimum(available_scrap[t], production[t])
+            else:
+                raise RuntimeError(f'Recycling strategy has to be base or tramp or econ, not {cfg.recycling_strategy}')
+            scrap_used_rate[t] = np.divide(scrap_in_production[t], available_scrap[t],
+                                           out=np.zeros_like(scrap_in_production[t]),
+                                           where=available_scrap[t] != 0)
+            cu_scrap_in_production[t] = cu_available_scrap[t] * scrap_used_rate[t]
 
-            # test cu_scrap sector split
-            test_cu_sector_split = np.sum(cu_scrap_production_intermediate_t, axis=1) - cu_scrap_in_production[t]
-            if not np.all(test_cu_sector_split < 1):
-                raise RuntimeError('Copper sector split not equal to total copper scrap in production.')
+        cu_tolerated_share_t = np.divide(cu_scrap_in_production[t], cu_tolerated_sum_t,
+                                         out=np.zeros_like(cu_scrap_in_production[t]),
+                                         where=cu_tolerated_sum_t != 0)
+        cu_scrap_production_intermediate_t = np.einsum('ris,rs->ris', cu_tolerated[t], cu_tolerated_share_t)
 
-            cu_forming_intermediate[t] = np.einsum('ris,i->ris', cu_scrap_production_intermediate_t, forming_yield)
-            cu_forming_scrap[t] = np.sum(cu_scrap_production_intermediate_t - cu_forming_intermediate[t], axis=1)
+        # test cu_scrap sector split
+        test_cu_sector_split = np.sum(cu_scrap_production_intermediate_t, axis=1) - cu_scrap_in_production[t]
+        if not np.all(test_cu_sector_split < 1):
+            raise RuntimeError('Copper sector split not equal to total copper scrap in production.')
 
-            cu_imports[t], cu_exports[t] = _calc_cu_trade(cu_forming_intermediate[t], forming_intermediate[t],
-                                                          imports[t], exports[t])
+        cu_forming_intermediate[t] = np.einsum('ris,i->ris', cu_scrap_production_intermediate_t, forming_yield)
+        cu_forming_scrap[t] = np.sum(cu_scrap_production_intermediate_t - cu_forming_intermediate[t], axis=1)
 
-            cu_intermediate_fabrication[t] = cu_forming_intermediate[t] + cu_imports[t] - cu_exports[t]
+        cu_imports[t], cu_exports[t] = _calc_cu_trade(cu_forming_intermediate[t], forming_intermediate[t],
+                                                      imports[t], exports[t])
 
-            cu_fabrication_outflow_t = np.einsum('ris,rigs->rgs',
-                                                 cu_intermediate_fabrication[t],
-                                                 intermediate_fabrication_ig_share[t])
+        cu_intermediate_fabrication[t] = cu_forming_intermediate[t] + cu_imports[t] - cu_exports[t]
 
-            # test fabrication balance
-            test_fabrication_balance = np.sum(cu_intermediate_fabrication[t], axis=1) - np.sum(cu_fabrication_outflow_t,
-                                                                                               axis=1)
-            test_fabrication_balance2 = np.all(np.abs(test_fabrication_balance) < 1)
-            if not test_fabrication_balance2:
-                raise RuntimeError('Copper fabrication balance wrong.')
+        cu_fabrication_outflow_t = np.einsum('ris,rigs->rgs',
+                                             cu_intermediate_fabrication[t],
+                                             intermediate_fabrication_ig_share[t])
 
-            cu_fabrication_use[t] = np.einsum('rgs,g->rgs', cu_fabrication_outflow_t, fabrication_yield)
-            cu_fabrication_scrap[t] = np.sum(cu_fabrication_outflow_t - cu_fabrication_use[t], axis=1)
-            cu_indirect_imports[t], cu_indirect_exports[t] = _calc_cu_trade(cu_fabrication_use[t], fabrication_use[t],
-                                                                            indirect_imports[t], indirect_exports[t])
-            cu_inflows[t] = cu_fabrication_use[t] + cu_indirect_imports[t] - cu_indirect_exports[t]
-            cu_outflows[t] = np.einsum('trgs,trg->rgs', cu_inflows[:t + 1], lifetime_matrix[t, :t + 1])
-            cu_stocks[t] = cu_stocks[t - 1] + cu_inflows[t] - cu_outflows[t]
+        # test fabrication balance
+        test_fabrication_balance = np.sum(cu_intermediate_fabrication[t], axis=1) - np.sum(cu_fabrication_outflow_t,
+                                                                                           axis=1)
+        test_fabrication_balance2 = np.all(np.abs(test_fabrication_balance) < 1)
+        if not test_fabrication_balance2:
+            raise RuntimeError('Copper fabrication balance wrong.')
+
+        cu_fabrication_use[t] = np.einsum('rgs,g->rgs', cu_fabrication_outflow_t, fabrication_yield)
+        cu_fabrication_scrap[t] = np.sum(cu_fabrication_outflow_t - cu_fabrication_use[t], axis=1)
+        cu_indirect_imports[t], cu_indirect_exports[t] = _calc_cu_trade(cu_fabrication_use[t], fabrication_use[t],
+                                                                        indirect_imports[t], indirect_exports[t])
+        cu_inflows[t] = cu_fabrication_use[t] + cu_indirect_imports[t] - cu_indirect_exports[t]
+        cu_outflows[t] = np.einsum('trgs,trg->rgs', cu_inflows[:t + 1], lifetime_matrix[t, :t + 1])
+        cu_stocks[t] = cu_stocks[t - 1] + cu_inflows[t] - cu_outflows[t]
 
     scrap_share = np.divide(scrap_in_production, production,
                             out=np.zeros_like(scrap_in_production), where=production != 0)
