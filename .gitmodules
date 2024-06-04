@@ -43,3 +43,12 @@
 [submodule "data/original/iso3_codes"]
 	path = data/original/iso3_codes
 	url = git@gitlab.pik-potsdam.de:simson_data/iso3_codes.git
+[submodule "data/original/daehn"]
+	path = data/original/daehn
+	url = https://gitlab.pik-potsdam.de/simson_data/daehn.git
+[submodule "data/original/cullen"]
+	path = data/original/cullen
+	url = https://gitlab.pik-potsdam.de/simson_data/cullen.git
+[submodule "data/original/worldsteel"]
+	path = data/original/worldsteel
+	url = https://gitlab.pik-potsdam.de/simson_data/worldsteel.git
