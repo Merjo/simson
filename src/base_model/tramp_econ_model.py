@@ -44,6 +44,9 @@ def calc_tramp_econ_model(q_st_total, q_eol_g, q_fabrication_buffer, t_eol_share
 
 
 def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_T, Q_EoL_g, p_prst_price):
+    if (Q_EoL_g == 0).any():
+        return np.zeros_like(Q_EoL_g), np.zeros_like(Q_EoL_g)
+
     P_0_col = cfg.p_0_col
     P_0_dis = cfg.p_0_dis
     e_dis = get_average_dis_elasticity()
@@ -165,6 +168,10 @@ def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_
     r_recov_m = R_recov_g(1, p_col)
     r_recov_p = R_recov_g(2, p_col)
     r_recov_t = R_recov_g(3, p_col)
+
+    r_recov_g = np.array([r_recov_c, r_recov_m, r_recov_p, r_recov_t])
+
+    return r_recov_g, s_cu_newton
 
     p_sum_dis_col_eaf = p_col + p_dis + exog_eaf
     price_diff_Pr_Se = p_prst - p_sum_dis_col_eaf
