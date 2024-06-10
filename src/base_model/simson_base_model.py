@@ -56,24 +56,23 @@ def load_simson_base_model(country_specific=False, recalculate=False, recalculat
 
 
 def create_base_model(country_specific, recalculate_dsms):
-    dsms = load_dsms(country_specific, recalculate_dsms)
-    model, balance_message = create_model(country_specific, dsms)
+    # dsms = load_dsms(country_specific, recalculate_dsms)
+    model, balance_message = create_model(country_specific)
     print(balance_message)
     return model
 
 
-def create_model(country_specific, dsms, scrap_share_in_production=None):
-    n_regions = len(dsms)
+def create_model(country_specific, scrap_share_in_production=None):
+    n_regions = 12
     max_scrap_share_in_production = _calc_max_scrap_share(scrap_share_in_production, n_regions)
     # load data
     areas = get_stock_data_country_specific_areas(country_specific)
     main_model = set_up_model(areas)
-    stocks, inflows, outflows = get_dsm_data(dsms)
     # Load base_model
     initiate_model(main_model)
 
     # compute stocks and flows
-    inflows, outflows = compute_flows(main_model, country_specific, inflows, outflows,
+    inflows, outflows = compute_flows(main_model, country_specific,
                                       max_scrap_share_in_production)
     compute_stocks(main_model, inflows, outflows)
 
@@ -249,8 +248,7 @@ def check_consistency(main_model: MFAsystem):
             raise RuntimeError("A consistency check failed: " + str(consistency))
 
 
-def compute_flows(model: MFAsystem, country_specific: bool,
-                  inflows: np.ndarray, outflows: np.ndarray, max_scrap_share_in_production: np.ndarray):
+def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_production: np.ndarray):
     """
 
     :param model: The MFA system
@@ -278,10 +276,7 @@ def compute_flows(model: MFAsystem, country_specific: bool,
     """
 
     production, forming_intermediate, imports, exports, intermediate_fabrication, fabrication_use, \
-    indirect_imports, indirect_exports, inflows, stocks, outflows = \
-        compute_upper_cycle_modelling_approaches() if cfg.do_model_approaches \
-            else compute_upper_cycle_base_model(country_specific, inflows, outflows, fabrication_yield)  # TODO adapt
-
+    indirect_imports, indirect_exports, inflows, stocks, outflows = compute_upper_cycle_modelling_approaches()
     forming_scrap = np.einsum('tris,i->trs', forming_intermediate, (1 / forming_yield - 1))
 
     fabrication_scrap = np.einsum('trgs,g->trs', fabrication_use, (1 / fabrication_yield - 1))
@@ -323,16 +318,24 @@ def compute_flows(model: MFAsystem, country_specific: bool,
         r_0_recov_g = recovery_rate
         ip_tlrc_i = tolerances
 
-        s_cu_alloy_g = np.einsum('gi,i->g', gi_distribution, copper_rate) * 0.8
+        s_cu_alloy_g = np.einsum('gi,g->g', gi_distribution, copper_rate) * 0.8
 
         t_eol_g = scrap_imports - scrap_exports
+        q_eol_total = np.sum(q_eol, axis=2)
+        t_eol_share = np.divide(np.sum(t_eol_g, axis=2),
+                                q_eol_total,
+                                out=np.zeros_like(production),
+                                where=q_eol_total != 0)
         p_st = prices
         p_0_st = initial_price
 
-        q_pr_st, q_se_st, recovery_rate, copper_rate = calc_tramp_econ_model(q_st, q_eol, t_eol_g, p_0_st,
-                                                                             p_st,
-                                                                             r_0_recov_g, ip_tlrc_i,
-                                                                             s_cu_alloy_g)
+        q_st_total = np.sum(q_st, axis=2)
+
+        q_primary_scrap = fabrication_buffer
+
+        q_pr_st, q_se_st, recovery_rate, copper_rate, = calc_tramp_econ_model(q_st_total, q_eol, q_primary_scrap,
+                                                                              t_eol_share, p_0_st, p_st,
+                                                                              r_0_recov_g, ip_tlrc_i, s_cu_alloy_g)
 
     recovery_and_copper_rate_dims = 'trgs' if do_econ_model else 'g'
     buffer_eol = np.einsum(f'trgs,{recovery_and_copper_rate_dims}->trgs', outflow_buffer, recovery_rate)

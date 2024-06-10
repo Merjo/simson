@@ -2,11 +2,14 @@ import sys
 import math
 import numpy as np
 from matplotlib import pyplot as plt
+import matplotlib.font_manager as fm
+import os
 
-'''# Add the specific directory to the Python path
+# Add the specific directory to the Python path
 script_directory = '/Users/marcelgeller/PycharmProjects/curve_informing_simson/venv/Testings/curve_informing'
-sys.path.append(script_directory)'''
-from config import cfg
+sys.path.append(script_directory)
+
+from src.tools.config import cfg
 
 # Define parameter inputs for recovery price elasticity for all sectors
 # Transport
@@ -44,7 +47,7 @@ e_recov_P = math.log((-rp_P + 1) / (-r0_P + 1)) / math.log(pp_P / p0_P)
 
 # Calculate average price elasticity of scrap recovery from all sectors
 def get_average_recov_elasticity():
-    e_recov = np.average([e_recov_T, e_recov_M, e_recov_C, e_recov_P])
+    e_recov = np.average([e_recov_C, e_recov_M, e_recov_P, e_recov_T])
     return e_recov
 
 
@@ -56,16 +59,13 @@ def get_parameters_a_for_recov_curves():
     a_m = 1 / (((1 - r0_M) / (1 - r_free_m)) ** (1 / e_recov) - 1)
     a_c = 1 / (((1 - r0_C) / (1 - r_free_c)) ** (1 / e_recov) - 1)
     a_p = 1 / (((1 - r0_P) / (1 - r_free_p)) ** (1 / e_recov) - 1)
-    a_g_values = [a_t, a_m, a_c, a_p]
+    a_g_values = [a_c, a_m, a_p, a_t]
     return a_g_values
 
 
 a_average = np.sum(get_parameters_a_for_recov_curves()) / 4
-print('test:', a_average)
 
 a_g_values = get_parameters_a_for_recov_curves()
-# print(get_parameters_a_for_recov_curves())
-# print(a_g_values)
 
 ### Define parameter inputs for copper share price elasticity for all sectors
 # Transport
@@ -91,7 +91,7 @@ e_dis_P = math.log(S_Cu_0_P / S_Cu_p_P) / math.log(p0_P / pp_P)
 
 # Calculate average copper share price elasticity from all sectors
 def get_average_dis_elasticity():
-    e_dis = np.average([e_dis_T, e_dis_M, e_dis_C, e_dis_P])
+    e_dis = np.average([e_dis_C, e_dis_M, e_dis_P, e_dis_T])
     return e_dis
 
 
@@ -99,6 +99,10 @@ e_dis = get_average_dis_elasticity()
 
 
 def main():
+    # Select Calibri Font
+    calibri_path = '/Applications/Microsoft Word.app/Contents/Resources/DFonts/Calibri.ttf'
+    calibri_font = fm.FontProperties(fname=calibri_path)
+    plt.rcParams['font.family'] = calibri_font.get_name()
     print('1. RECOVERY RATE\n')
     print('The average price elasticity of scrap recovery across all sectors (T, M, C, P) is: ', e_recov, '\n')
 
@@ -123,17 +127,19 @@ def main():
     plt.figure(figsize=(7, 6))
     p = np.arange(0., 1000, 0.01)
     plt.plot(r(p), p)
-    plt.title('Scrap Recovery Rate Transport & Machinery')
-    plt.xlabel('Recovery Rate [%]')
-    plt.ylabel(r'Collection Costs P_col [$/t]')
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
+    plt.title('Scrap Recovery Rate Transport & Machinery', fontproperties=calibri_font, fontsize=14)
+    plt.xlabel('Recovery Rate [%]', fontproperties=calibri_font, fontsize=12)
+    plt.ylabel(r'Collection Costs P_col [$/t]', fontproperties=calibri_font, fontsize=12)
+    plt.xticks(fontproperties=calibri_font, fontsize=12)
+    plt.yticks(fontproperties=calibri_font, fontsize=12)
     plt.xlim([0., 1.])
     plt.ylim([0, 1000])
-    plt.text(0.05, 850, f'Elasticity T,M: {e_recov:.2f}', fontsize=9, color='black')
-    plt.text(0.05, 800, f'Value a: {a_average:.2f}', fontsize=9, color='black')
-    plt.text(0.05, 750, f'R_recov base: {r0:.2f}', fontsize=9, color='black')
-    plt.text(0.05, 700, f'R_recov if P_col doubles: {r(300):.2f}', fontsize=9, color='black')
+    plt.text(0.05, 850, f'Elasticity T,M: {e_recov:.2f}', fontsize=12, color='black', fontproperties=calibri_font)
+    plt.text(0.05, 800, f'Value a: {a_average:.2f}', fontsize=12, color='black', fontproperties=calibri_font)
+    plt.text(0.05, 750, f'R_recov base: {r0:.2f}', fontsize=12, color='black', fontproperties=calibri_font)
+    plt.text(0.05, 700, f'R_recov if P_col doubles: {r(300):.2f}', fontsize=12, color='black',
+             fontproperties=calibri_font)
+    plt.grid(True)
     plt.show()
 
     ## RECOVERY RATE CONSTRUCTION
@@ -156,17 +162,18 @@ def main():
     plt.figure(figsize=(7, 6))
     p = np.arange(0., 1000, 0.01)
     plt.plot(r(p), p)
-    plt.title('Scrap Recovery Rate Construction')
-    plt.xlabel('Recovery Rate [%]')
-    plt.ylabel(r'Collection Costs P_col [$/t]')
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
+    plt.title('Scrap Recovery Rate Construction', fontproperties=calibri_font)
+    plt.xlabel('Recovery Rate [%]', fontproperties=calibri_font)
+    plt.ylabel(r'Collection Costs P_col [$/t]', fontproperties=calibri_font)
+    plt.xticks(fontsize=14, fontproperties=calibri_font)
+    plt.yticks(fontsize=14, fontproperties=calibri_font)
     plt.xlim([0., 1.])
     plt.ylim([0, 1000])
-    plt.text(0.05, 850, f'Elasticity C: {e_recov:.2f}', fontsize=9, color='black')
-    plt.text(0.05, 800, f'Value a: {a_average:.2f}', fontsize=9, color='black')
-    plt.text(0.05, 750, f'R_recov base: {r0:.2f}', fontsize=9, color='black')
-    plt.text(0.05, 700, f'R_recov if P_col doubles: {r(300):.2f}', fontsize=9, color='black')
+    plt.text(0.05, 850, f'Elasticity C: {e_recov:.2f}', fontsize=9, color='black', fontproperties=calibri_font)
+    plt.text(0.05, 800, f'Value a: {a_average:.2f}', fontsize=9, color='black', fontproperties=calibri_font)
+    plt.text(0.05, 750, f'R_recov base: {r0:.2f}', fontsize=9, color='black', fontproperties=calibri_font)
+    plt.text(0.05, 700, f'R_recov if P_col doubles: {r(300):.2f}', fontsize=9, color='black',
+             fontproperties=calibri_font)
     plt.show()
 
     ## RECOVERY RATE PRODUCTS
@@ -190,17 +197,18 @@ def main():
     plt.figure(figsize=(7, 6))
     p = np.arange(0., 1000, 0.01)
     plt.plot(r(p), p)
-    plt.title('Scrap Recovery Rate Products')
-    plt.xlabel('Recovery Rate [%]')
-    plt.ylabel(r'Collection Costs P_col [$/t]')
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
+    plt.title('Scrap Recovery Rate Products', fontproperties=calibri_font)
+    plt.xlabel('Recovery Rate [%]', fontproperties=calibri_font)
+    plt.ylabel(r'Collection Costs P_col [$/t]', fontproperties=calibri_font)
+    plt.xticks(fontsize=14, fontproperties=calibri_font)
+    plt.yticks(fontsize=14, fontproperties=calibri_font)
     plt.xlim([0., 1.])
     plt.ylim([0., 1000])
-    plt.text(0.05, 850, f'Elasticity P: {e_recov:.2f}', fontsize=9, color='black')
-    plt.text(0.05, 800, f'Value a: {a_average:.2f}', fontsize=9, color='black')
-    plt.text(0.05, 750, f'R_recov base: {r0:.2f}', fontsize=9, color='black')
-    plt.text(0.05, 700, f'R_recov if P_col doubles: {r(300):.2f}', fontsize=9, color='black')
+    plt.text(0.05, 850, f'Elasticity P: {e_recov:.2f}', fontsize=9, color='black', fontproperties=calibri_font)
+    plt.text(0.05, 800, f'Value a: {a_average:.2f}', fontsize=9, color='black', fontproperties=calibri_font)
+    plt.text(0.05, 750, f'R_recov base: {r0:.2f}', fontsize=9, color='black', fontproperties=calibri_font)
+    plt.text(0.05, 700, f'R_recov if P_col doubles: {r(300):.2f}', fontsize=9, color='black',
+             fontproperties=calibri_font)
     plt.show()
 
     print('---------------------------------------------------------------------------------------------\n\n')
@@ -211,106 +219,110 @@ def main():
 
     # External Copper Share added in Recycling Transport
     print('\033[4mEXTERNAL COPPER SHARE ADDED IN RECYCLING (TRANSPORT)\033[0m\n')
-    S_Cu_0_T_adjusted = S_Cu_0_T / p0_T ** e_dis
+    S_Cu_0_T_adjusted = S_Cu_0_T * 100 / p0_T ** e_dis  # times 100 to express everything in wt%
 
     def r(p):
         return S_Cu_0_T_adjusted * p ** e_dis
 
     print('Value for base copper share: ', S_Cu_0_T)
     print('Value for base copper share adjusted due to average price elasticity: ', S_Cu_0_T_adjusted)
+    print('Value for copper share when price stays 150: ', r(150))
     print('Value for copper share when price doubles: ', r(300), '\n')
 
     plt.figure(figsize=(7, 6))
     p = np.arange(0.000001, 1000, 0.01)
     plt.plot(r(p), p)
-    plt.title('External Copper Share added in Recycling (Transport)')
-    plt.xlabel('Copper Share S_Cu,T added [wt%]')
-    plt.ylabel(r'Disassembly Costs $/t')
+    plt.title('External Copper Share added in Recycling (Transport)', fontproperties=calibri_font)
+    plt.xlabel('Copper Share S_Cu,T added [wt%]', fontproperties=calibri_font)
+    plt.ylabel(r'Disassembly Costs $/t', fontproperties=calibri_font)
     plt.axvline(x=0.3, color='black', linestyle='--')
-    plt.text(0.31, 400, 'copper limit\ntransport')
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
+    plt.text(0.31, 400, 'copper limit\ntransport', fontproperties=calibri_font)
+    plt.xticks(fontsize=14, fontproperties=calibri_font)
+    plt.yticks(fontsize=14, fontproperties=calibri_font)
     plt.xlim([0., 0.5])
     plt.ylim([0., 1000])
-    plt.text(0.05, 850, f'Elasticity: {e_dis:.2f}', fontsize=9, color='black')
+    plt.text(0.05, 850, f'Elasticity: {e_dis:.2f}', fontsize=9, color='black', fontproperties=calibri_font)
     plt.show()
 
     ### External Copper Share added in Recycling MACHINERY
     print('\033[4mEXTERNAL COPPER SHARE ADDED IN RECYCLING (MACHINERY)\033[0m\n')
-    S_Cu_0_M_adjusted = S_Cu_0_M / p0_M ** e_dis
+    S_Cu_0_M_adjusted = S_Cu_0_M * 100 / p0_M ** e_dis  # times 100 to express everything in wt%
 
     def r(p):
         return S_Cu_0_M_adjusted * p ** e_dis
 
     print('Value for base copper share: ', S_Cu_0_M)
     print('Value for base copper share adjusted due to average price elasticity: ', S_Cu_0_M_adjusted)
+    print('Value for copper share when price stays 150: ', r(150))
     print('Value for copper share when price doubles: ', r(300), '\n')
 
     plt.figure(figsize=(7, 6))
     p = np.arange(0.000001, 1000, 0.01)
     plt.plot(r(p), p)
-    plt.title('External Copper Share added in Recycling (Machinery)')
-    plt.xlabel('Copper Share S_Cu,M added [wt%]')
-    plt.ylabel(r'Disassembly Costs $/t')
+    plt.title('External Copper Share added in Recycling (Machinery)', fontproperties=calibri_font)
+    plt.xlabel('Copper Share S_Cu,M added [wt%]', fontproperties=calibri_font)
+    plt.ylabel(r'Disassembly Costs $/t', fontproperties=calibri_font)
     plt.axvline(x=0.25, color='black', linestyle='--')
-    plt.text(0.26, 300, 'copper limit\nmachinery')
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
+    plt.text(0.26, 300, 'copper limit\nmachinery', fontproperties=calibri_font)
+    plt.xticks(fontsize=14, fontproperties=calibri_font)
+    plt.yticks(fontsize=14, fontproperties=calibri_font)
     plt.xlim([0., 0.5])
     plt.ylim([0., 1000])
-    plt.text(0.05, 850, f'Elasticity: {e_dis:.2f}', fontsize=9, color='black')
+    plt.text(0.05, 850, f'Elasticity: {e_dis:.2f}', fontsize=9, color='black', fontproperties=calibri_font)
     plt.show()
 
     ### External Copper Share added in Recycling CONSTRUCTION
     print('\033[4mEXTERNAL COPPER SHARE ADDED IN RECYCLING (CONSTRUCTION)\033[0m\n')
-    S_Cu_0_C_adjusted = S_Cu_0_C / p0_C ** e_dis
+    S_Cu_0_C_adjusted = S_Cu_0_C * 100 / p0_C ** e_dis  # times 100 to express everything in wt%
 
     def r(p):
-        return 2337.13 * p ** e_dis
+        return S_Cu_0_C_adjusted * p ** e_dis
 
     print('Value for base copper share: ', S_Cu_0_C)
     print('Value for base copper share adjusted due to average price elasticity: ', S_Cu_0_C_adjusted)
+    print('Value for copper share when price stays 150: ', r(150))
     print('Value for copper share when price doubles: ', r(300), '\n')
 
     plt.figure(figsize=(7, 6))
     p = np.arange(0.000001, 1000, 0.01)
     plt.plot(r(p), p)
-    plt.title('External Copper Share added in Recycling (Construction)')
-    plt.xlabel('Copper Share S_Cu,C added [wt%]')
-    plt.ylabel(r'Disassembly Costs $/t')
+    plt.title('External Copper Share added in Recycling (Construction)', fontproperties=calibri_font)
+    plt.xlabel('Copper Share S_Cu,C added [wt%]', fontproperties=calibri_font)
+    plt.ylabel(r'Disassembly Costs $/t', fontproperties=calibri_font)
     plt.axvline(x=0.1, color='black', linestyle='--')
-    plt.text(0.11, 300, 'copper limit\nconstruction')
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
+    plt.text(0.11, 300, 'copper limit\nconstruction', fontproperties=calibri_font)
+    plt.xticks(fontsize=14, fontproperties=calibri_font)
+    plt.yticks(fontsize=14, fontproperties=calibri_font)
     plt.xlim([0., 0.5])
     plt.ylim([0., 1000])
-    plt.text(0.4, 850, f'Elasticity: {e_dis:.2f}', fontsize=9, color='black')
+    plt.text(0.4, 850, f'Elasticity: {e_dis:.2f}', fontsize=9, color='black', fontproperties=calibri_font)
     plt.show()
 
     ### External Copper Share added in Recycling PRODUCTS
     print('\033[4mEXTERNAL COPPER SHARE ADDED IN RECYCLING (PRODUCTS)\033[0m\n')
-    S_Cu_0_P_adjusted = S_Cu_0_P / p0_P ** e_dis
+    S_Cu_0_P_adjusted = S_Cu_0_P * 100 / p0_P ** e_dis  # times 100 to express everything in wt%
 
     def r(p):
         return S_Cu_0_P_adjusted * p ** e_dis
 
     print('Value for base copper share: ', S_Cu_0_P)
     print('Value for base copper share adjusted due to average price elasticity: ', S_Cu_0_P_adjusted)
+    print('Value for copper share when price stays 150: ', r(150))
     print('Value for copper share when price doubles: ', r(300), '\n')
 
     plt.figure(figsize=(7, 6))
     p = np.arange(0.000001, 1000, 0.01)
     plt.plot(r(p), p)
-    plt.title('External Copper Share added in Recycling (Products)')
-    plt.xlabel('Copper Share S_Cu,P added [wt%]')
-    plt.ylabel(r'Disassembly Costs $/t')
+    plt.title('External Copper Share added in Recycling (Products)', fontproperties=calibri_font)
+    plt.xlabel('Copper Share S_Cu,P added [wt%]', fontproperties=calibri_font)
+    plt.ylabel(r'Disassembly Costs $/t', fontproperties=calibri_font)
     plt.axvline(x=0.4, color='black', linestyle='--')
-    plt.text(0.275, 300, 'copper limit\nproducts')
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
+    plt.text(0.275, 300, 'copper limit\nproducts', fontproperties=calibri_font)
+    plt.xticks(fontsize=14, fontproperties=calibri_font)
+    plt.yticks(fontsize=14, fontproperties=calibri_font)
     plt.xlim([0., 0.5])
     plt.ylim([0., 1000])
-    plt.text(0.05, 450, f'Elasticity: {e_dis:.2f}', fontsize=9, color='black')
+    plt.text(0.05, 450, f'Elasticity: {e_dis:.2f}', fontsize=9, color='black', fontproperties=calibri_font)
     plt.show()
 
     ### Price Sensitivity of Steel Demand
@@ -322,16 +334,93 @@ def main():
     plt.figure(figsize=(7, 6))
     p = np.arange(0.000001, 1000, 0.01)
     plt.plot(r(p), p)
-    plt.title('Price Sensitivity of Steel Demand')
-    plt.xlabel('Effect of Price on Demand [%]')
-    plt.ylabel(r'Steel Price $/t')
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
+    plt.title('Price Sensitivity of Steel Demand', fontproperties=calibri_font)
+    plt.xlabel('Effect of Price on Demand [%]', fontproperties=calibri_font)
+    plt.ylabel(r'Steel Price $/t', fontproperties=calibri_font)
+    plt.xticks(fontsize=14, fontproperties=calibri_font)
+    plt.yticks(fontsize=14, fontproperties=calibri_font)
     plt.xlim([0., 2])
     plt.ylim([0., 1000])
-    plt.text(0.25, 850, f'Elasticity: {ela:.2f}', fontsize=9, color='black')
+    plt.text(0.25, 850, f'Elasticity: {ela:.2f}', fontsize=9, color='black', fontproperties=calibri_font)
     plt.show()
 
+
+'''
+    ###test recov curve transport & machinery
+    r0= 0.9
+    e_recov_new = 0.6
+    p0 = p0_T
+    a_test = 0
+
+    def r(p):
+        return r0 * ((p / p0 + a_test) / (1 + a_test)) ** e_recov_new
+
+    plt.figure(figsize=(7, 6))
+    p = np.arange(0., 1000, 0.01)
+    plt.plot(r(p), p)
+    plt.title('Scrap Recovery Rate Test Transport & Machinery')
+    plt.xlabel('Recovery Rate [%]')
+    plt.ylabel(r'Collection Costs P_col [$/t]')
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    plt.xlim([0., 1.])
+    plt.ylim([0., 1000])
+    plt.text(0.05, 850, f'Elasticity P: {e_recov_new:.2f}', fontsize=9, color='black')
+    plt.text(0.05, 800, f'Value a: {a_test:.2f}', fontsize=9, color='black')
+    plt.text(0.05, 750, f'R_recov base: {r0:.2f}', fontsize=9, color='black')
+    plt.text(0.05, 700, f'R_recov if P_col doubles: {r(300):.2f}', fontsize=9, color='black')
+    plt.show()
+
+    ###test recov curve construction
+    r0 = 0.85
+    e_recov_new = 0.39
+    p0 = p0_C
+    a_test = 0
+
+    def r(p):
+        return r0 * ((p / p0 + a_test) / (1 + a_test)) ** e_recov_new
+
+    plt.figure(figsize=(7, 6))
+    p = np.arange(0., 1000, 0.01)
+    plt.plot(r(p), p)
+    plt.title('Scrap Recovery Rate Test Construction')
+    plt.xlabel('Recovery Rate [%]')
+    plt.ylabel(r'Collection Costs P_col [$/t]')
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    plt.xlim([0., 1.])
+    plt.ylim([0., 1000])
+    plt.text(0.05, 850, f'Elasticity P: {e_recov_new:.2f}', fontsize=9, color='black')
+    plt.text(0.05, 800, f'Value a: {a_test:.2f}', fontsize=9, color='black')
+    plt.text(0.05, 750, f'R_recov base: {r0:.2f}', fontsize=9, color='black')
+    plt.text(0.05, 700, f'R_recov if P_col doubles: {r(300):.2f}', fontsize=9, color='black')
+    plt.show()
+
+    ###test recov curve product
+    r0 = 0.5
+    e_recov_new = -0.39
+    p0 = p0_P
+    a_test = 0
+
+    def r(p):
+        return 1-((1-r0) * ((p / p0 + a_test) / (1 + a_test)) ** e_recov_new)
+
+    plt.figure(figsize=(7, 6))
+    p = np.arange(0., 1000, 0.01)
+    plt.plot(r(p), p)
+    plt.title('Scrap Recovery Rate Test Product')
+    plt.xlabel('Recovery Rate [%]')
+    plt.ylabel(r'Collection Costs P_col [$/t]')
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    plt.xlim([0., 1.])
+    plt.ylim([0., 1000])
+    plt.text(0.05, 850, f'Elasticity P: {e_recov_new:.2f}', fontsize=9, color='black')
+    plt.text(0.05, 800, f'Value a: {a_test:.2f}', fontsize=9, color='black')
+    plt.text(0.05, 750, f'R_recov base: {r0:.2f}', fontsize=9, color='black')
+    plt.text(0.05, 700, f'R_recov if P_col doubles: {r(300):.2f}', fontsize=9, color='black')
+    plt.show()
+'''
 
 if __name__ == "__main__":
     main()

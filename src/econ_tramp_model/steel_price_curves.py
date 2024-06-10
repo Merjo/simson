@@ -5,7 +5,32 @@ import sys
 # Add the specific directory to the Python path
 script_directory = '/Users/marcelgeller/PycharmProjects/curve_informing_simson/venv/Testings/curve_informing'
 sys.path.append(script_directory)
-from config import cfg
+from src.tools.config import cfg
+import numpy as np
+
+
+def get_bof_prices():
+    baseline_prices = baseline_scenario()
+    degree_1_5_prices = degree_1_5_scenario()
+
+    years = list(baseline_prices.keys())
+    scenario_type = cfg.price_scenario
+    if scenario_type == 'baseline':
+        baseline_bf_bof = np.array([baseline_prices[year]['BF/BOF'] for year in years])
+        return baseline_bf_bof
+    elif scenario_type == '1_5_degree':
+        degree_1_5_bf_bof = np.array([degree_1_5_prices[year]['BF/BOF'] for year in years])
+        return degree_1_5_bf_bof
+    else:
+        print("Unknown scenario type in config.")
+        return None
+
+
+def get_eaf_prices():
+    baseline_prices = baseline_scenario()
+    years = list(baseline_prices.keys())
+    eaf_prices = [baseline_prices[year]['EAF'] for year in years]
+    return np.array(eaf_prices)
 
 
 def baseline_scenario():
@@ -31,7 +56,7 @@ def degree_1_5_scenario():
     return prices
 
 
-def prices_BF_BOF(scenario, year=None):
+def prices_BF_BOF(scenario):
     """
     Print the BF/BOF prices of a specific scenario for each year or for a specific year.
 
@@ -40,14 +65,14 @@ def prices_BF_BOF(scenario, year=None):
     """
     if year is not None:
         if year in scenario:
-            print(f"Year {year}: BF/BOF Price = {scenario[year]['BF/BOF']} $/t")
-            return scenario[year]['BF/BOF']
+            print(f"Year : BF/BOF Price = {scenario[:]['BF/BOF']} $/t")
+            return scenario[:]['BF/BOF']
         else:
-            print(f"Year {year} not found in the scenario.")
+            print(f"Year  not found in the scenario.")
             return None
     else:
         for year in scenario:
-            print(f"Year {year}: BF/BOF Price = {scenario[year]['BF/BOF']} $/t")
+            print(f"Year : BF/BOF Price = {scenario[:]['BF/BOF']} $/t")
         return None
 
 
@@ -92,13 +117,12 @@ def get_price_for_scenario_and_year(year=None):
     return eaf_price, bf_bof_price
 
 
-t_price = 2050
+# t_price = 2050
 # Test
-print("BF/BOF and EAF prices for", cfg.price_scenario, "scenario:")
-eaf, bof = get_price_for_scenario_and_year(t_price)
-print(eaf)
-print(bof)
-
+# print("BF/BOF and EAF prices for", cfg.price_scenario, "scenario:")
+# eaf, bof = get_price_for_scenario_and_year(t_price)
+# print(eaf)
+# print(bof)
 
 def main():
     def plot_scenarios():

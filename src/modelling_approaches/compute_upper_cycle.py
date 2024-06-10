@@ -61,9 +61,10 @@ def compute_upper_cycle(model_type=cfg.model_type, country_specific=False):  # d
 
     # test if something went wrong during model approaches
     test_a = np.all(fabrication_use[:123] - past_fabrication_use < 4)
-    test_AAA = fabrication_use[:123] - past_fabrication_use < 4
-    test_b = np.all(intermediate_fabrication[:123, :, :, 1] - past_intermediate_fabrication[:, :, :, 1] < 4)
-    test_c = np.all(production[1:123, :, 1] - past_production[1:, :, 1] < 4)
+    test_BBBB = np.abs(fabrication_use[:123] - past_fabrication_use)
+    test_AAA = np.abs(fabrication_use[:123] - past_fabrication_use) < 4
+    test_b = np.all(np.abs(intermediate_fabrication[:123, :, :, 1] - past_intermediate_fabrication[:, :, :, 1]) < 4)
+    test_c = np.all(np.abs(production[1:123, :, 1] - past_production[1:, :, 1]) < 4)
     if not (test_a and test_b and test_c):
         raise RuntimeError('Something went wrong during model approach calculation.')
 
