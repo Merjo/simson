@@ -317,7 +317,7 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
 
         r_0_recov_g = recovery_rate
         ip_tlrc_i = tolerances
-        print(ip_tlrc_i)
+
         s_cu_alloy_g = np.einsum('gi,g->g', gi_distribution, copper_rate) * 0.8
 
         t_eol_g = scrap_imports - scrap_exports
@@ -329,20 +329,13 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
         p_st = prices
         p_0_st = initial_price
 
-        # calculation of s_cu_max
-        s_cu_max_numerator = np.einsum('tris,i->tris', production_by_intermediate, ip_tlrc_i)
-        sum_numerator = np.einsum('tris->trs', s_cu_max_numerator)
-        sum_denominator = np.einsum('tris->trs', production_by_intermediate)
-        s_cu_max = sum_numerator / sum_denominator
-
         q_st_total = np.sum(q_st, axis=2)
 
         q_primary_scrap = fabrication_buffer
 
-        q_pr_st, q_se_st, recovery_rate, copper_rate = calc_tramp_econ_model(q_st_total, q_eol, q_primary_scrap,
-                                                                             t_eol_share, p_0_st, p_st,
-                                                                             r_0_recov_g, ip_tlrc_i, s_cu_alloy_g,
-                                                                             s_cu_max)
+        q_pr_st, q_se_st, recovery_rate, copper_rate, = calc_tramp_econ_model(q_st_total, q_eol, q_primary_scrap,
+                                                                              t_eol_share, p_0_st, p_st,
+                                                                              r_0_recov_g, ip_tlrc_i, s_cu_alloy_g)
 
     recovery_and_copper_rate_dims = 'trgs' if do_econ_model else 'g'
     buffer_eol = np.einsum(f'trgs,{recovery_and_copper_rate_dims}->trgs', outflow_buffer, recovery_rate)

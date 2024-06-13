@@ -9,8 +9,8 @@ from src.econ_tramp_model.steel_price_curves import get_bof_prices, get_eaf_pric
 # from src.base_model.simson_base_model import
 
 def calc_tramp_econ_model(q_st_total, q_eol_g, q_fabrication_buffer, t_eol_share, p_0_st, p_st, r_0_recov_g, ip_tlrc_i,
-                          s_cu_alloy_g):
-    # load steel price and also steel price from previos year
+                          s_cu_alloy_g, s_cu_max):
+    # load steel price
     exog_eaf_price = get_eaf_prices()
     p_prst_price_from_2023 = get_bof_prices()
     p_prst_price = np.ones(201) * p_prst_price_from_2023[0]
@@ -24,37 +24,41 @@ def calc_tramp_econ_model(q_st_total, q_eol_g, q_fabrication_buffer, t_eol_share
     # load parameter
 
     r_recov_g = np.zeros((201, 12, 4, 5))
-    s_cu_g = np.zeros((201, 12, 4, 5))
+    s_cu = np.zeros((201, 12, 4, 5))
+    q_se_st = np.zeros((201, 12, 4, 5))
     q_eol_total = np.sum(q_eol_g, axis=2)
     for t in range(201):
+        print(f'\n\n\nCalc year {t + 1900}\n\n\n')
         for r in range(12):
             for s in range(5):
-                trs_r_recov, trs_s_cu_g = calc_tramp_econ_model_over_trs(q_st_total[t, r, s],
-                                                                         q_fabrication_buffer[t, r, s],
-                                                                         q_eol_total[t, r, s],
-                                                                         t_eol_share[t, r, s],
-                                                                         q_eol_g[t, r, :, s],
-                                                                         p_prst_price[t])
+                trs_r_recov, trs_s_cu, trs_q_se_st = calc_tramp_econ_model_over_trs(q_st_total[t, r, s],
+                                                                                    q_fabrication_buffer[t, r, s],
+                                                                                    q_eol_total[t, r, s],
+                                                                                    t_eol_share[t, r, s],
+                                                                                    q_eol_g[t, r, :, s],
+                                                                                    p_prst_price[t],
+                                                                                    s_cu_max[t, r, s],
+                                                                                    cfg.exog_eaf_USD98)  # exog_eaf_price[0])
                 r_recov_g[t, r, :, s] = trs_r_recov
-                s_cu_g[t, r, :, s] = trs_s_cu_g
+                s_cu[t, r, :, s] = trs_s_cu
+                q_se_st[t, r, :, s] = trs_q_se_st
 
-    q_pr_st = q_eol_g * 0.2
-    q_se_st = q_eol_g - q_pr_st
-    return q_pr_st, q_se_st, r_recov_g, s_cu_g
+    q_pr_st = q_st_total - q_se_st
+    return q_pr_st, q_se_st, r_recov_g, s_cu
 
 
-def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_T, Q_EoL_g, p_prst_price):
+def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_T, Q_EoL_g, p_prst_price, S_Cu_max,
+                                   exog_eaf):
     if (Q_EoL_g == 0).any():
-        return np.zeros_like(Q_EoL_g), np.zeros_like(Q_EoL_g)
+        return np.zeros_like(Q_EoL_g), np.zeros_like(Q_EoL_g), np.zeros_like(Q_EoL_g)
 
     P_0_col = cfg.p_0_col
     P_0_dis = cfg.p_0_dis
     e_dis = get_average_dis_elasticity()
     e_recov = get_average_recov_elasticity()
     a = a_average
-    S_Cu_max = 0.0002  # 0.0004 is the minimum value S_Cu_max can obtain as lowest tolerance is 0.04wt%
+    # S_Cu_max = 0.0004  # 0.0004 is the minimum value S_Cu_max can obtain as lowest tolerance is 0.04wt%
     S_reuse = cfg.s_reuse
-    exog_eaf = cfg.exog_eaf_USD98
     p_prst = p_prst_price
     S_Cu_alloy_g = np.array([cfg.s_cu_alloy_c, cfg.s_cu_alloy_m, cfg.s_cu_alloy_p,
                              cfg.s_cu_alloy_t])  # np.array([0.8 * 0.002002, 0.8 * 0.002465341, 0.8 * 0.001822651, 0.8 * 0.001985311]) #np.array([cfg.s_cu_alloy_t, cfg.s_cu_alloy_m, cfg.s_cu_alloy_c, cfg.s_cu_alloy_p])
@@ -73,6 +77,7 @@ def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_
     c1 = ((np.sum(Q_EoL_g) / np.sum((1 - R_0_recov_g) * Q_EoL_g)) ** (1 / e_recov)) * (1 + a)
 
     c2 = (0.8 * S_Cu_max * (Q_St - Q_Fabrication_Buffer)) / (Q_EoL * (1 - S_reuse) * (1 + S_EoL_net_T))
+
     print('c2 value: ', c2)
 
     # P_col
@@ -117,44 +122,91 @@ def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_
     def find_root_newton(initial_guess, tol=1e-6):
         return newton(function, initial_guess, fprime=derivative, tol=tol)
 
-    # preparation for econ model solve # finding starting values for bisection method
     # Finding root of P_dis_ numerator Newton
     initial_guess = c2 * 1.0000001
 
-    def find_newton_numerator(numerator_P_dis_expr, initial_guess):
-        try:
-            root_newton_numerator = newton(numerator_P_dis_expr, initial_guess) * 1.00001
-            print(f"The root of the numerator of P_dis is: {root_newton_numerator}")
-        except RuntimeError:
-            print('No root exists for the numerator with the given parameters!')
-            root_newton_numerator = 0
-        return root_newton_numerator
+    def find_newton_numerator(numerator_P_dis_expr, initial_guess, c2_value):
+        if c2_value < 0:
+            try:
+                root_newton_numerator_func = newton(numerator_P_dis_expr, 0.000001) * 1.00001
+                print(f"The root of the numerator of P_dis if c2<0 is: {root_newton_numerator_func}")
+            except RuntimeError:
+                root_newton_numerator_func = 0
+                print('No root exists for the numerator with the given parameters!')
+        else:
+            try:
+                root_newton_numerator_func = newton(numerator_P_dis_expr, initial_guess) * 1.00001
+                print(f"The root of the numerator of P_dis is: {root_newton_numerator_func}")
+            except RuntimeError:
+                root_newton_numerator_func = 0
+                print('No root exists for the numerator with the given parameters!')
+        return root_newton_numerator_func
 
-    root_newton_numerator = find_newton_numerator(numerator_P_dis_expr, initial_guess)
+    root_newton_numerator = find_newton_numerator(numerator_P_dis_expr, initial_guess, c2)
 
     # Finding root of P_dis_ denominator Newton
-    if np.any(np.isnan(initial_guess)):
-        raise RuntimeError('Initial Guess shouldnt be Nan')
-    root_newton_denominator = newton(denominator_P_dis_expr, initial_guess) * 0.99999
+    def find_newton_denominator(denominator_P_dis_expr, initial_guess, c2_value):
+        if c2_value < 0:
+            try:
+                root_newton_denominator_func = newton(denominator_P_dis_expr, 0.000001)
+                print(f"The root of the denominator of P_dis is: {root_newton_denominator_func}")
+            except RuntimeError:
+                root_newton_denominator_func = 0
+                print('root_newton_denominator: ', root_newton_denominator_func)
+                print(
+                    f"No root exists for the denominator with the given parameters and for c2<0, thus root_newton_denominator_func was set to: {root_newton_denominator_func}")
+        else:
+            try:
+                root_newton_denominator_func = newton(denominator_P_dis_expr, initial_guess) * 1.00001
+                print(f"The root of the denominator of P_dis is: {root_newton_denominator_func}")
+            except RuntimeError:
+                root_newton_denominator_func = 0
+                print(
+                    f"No root exists for the denominator with the given parameters, thus root_newton_denominator_func was set to: {root_newton_denominator_func}")
+        return root_newton_denominator_func
+
+    root_newton_denominator = find_newton_denominator(denominator_P_dis_expr, initial_guess, c2)
+
     print(f"The root of the denominator of P_dis is: {root_newton_denominator}")
 
-    def decide_starting_values_for_bisec(root_newton_numerator, root_newton_denominator, c2_value_exceeded):
-        if root_newton_numerator == 0:
-            start_value_bisec = c2_value_exceeded
+    def decide_starting_values_for_bisec(root_newton_numerator, root_newton_denominator, c2_value_exceeded, c2_value):
+        if c2_value < 0:
+            start_value_bisec_func = root_newton_numerator
+            end_value_bisec_func = 0.5
             print(
-                f"The root of the numerator is zero, thus the new starting value for bisec is the value of c2*1.00001: {start_value_bisec}")
+                f"The root of the denominator does not exist for c2<0 ({c2}), thus the new starting value for bisec is the root of the numerator: {start_value_bisec_func}.",
+                f"And the new end value for bisec is: {end_value_bisec_func}")
+        elif root_newton_numerator == 0:
+            start_value_bisec_func = c2_value_exceeded
+            end_value_bisec_func = root_newton_denominator
+            print(
+                f"The root of the numerator is zero, thus the new starting value for bisec is the value of c2*1.00001: {start_value_bisec_func}.",
+                f"And the new end value for bisec is: {end_value_bisec_func}")
         elif root_newton_denominator > root_newton_numerator:
-            start_value_bisec = root_newton_numerator
+            start_value_bisec_func = root_newton_numerator
+            end_value_bisec_func = root_newton_denominator
             print(
-                f"The root of the numerator is smaller than the root of the denominator, thus the new starting value for bisec is: {start_value_bisec}")
+                f"The root of the numerator is smaller than the root of the denominator, thus the new starting value for bisec is: {start_value_bisec_func}.",
+                f"And the new end value for bisec is: {end_value_bisec_func}")
+        elif root_newton_denominator < root_newton_numerator:
+            root_newton_denominator = root_newton_denominator * (
+                    1 / 0.99999) * 1.00001  # inital adjustments need to be reversed
+            root_newton_numerator = root_newton_numerator * (
+                    1 / 1.00001) * 0.99999  # inital adjustments need to be reversed
+            start_value_bisec_func = root_newton_denominator
+            end_value_bisec_func = root_newton_numerator
+            print(
+                f"The root of the denominator is smaller than the root of the numerator, thus the new starting value for bisec is: {start_value_bisec_func}.",
+                f"And the new end value for bisec is: {end_value_bisec_func}")
         else:
             print("Error during root finding")
-        return start_value_bisec
+        return start_value_bisec_func, end_value_bisec_func
 
-    start_value_bisec = decide_starting_values_for_bisec(root_newton_numerator, root_newton_denominator, initial_guess)
+    start_value_bisec, end_value_bisec = decide_starting_values_for_bisec(root_newton_numerator,
+                                                                          root_newton_denominator, initial_guess, c2)
 
     # solve econ model
-    s_cu_bisection = find_root_bisection(start_value_bisec, root_newton_denominator)
+    s_cu_bisection = find_root_bisection(start_value_bisec, end_value_bisec)
     s_cu_newton = find_root_newton(s_cu_bisection)
 
     print('\n')
@@ -171,7 +223,9 @@ def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_
 
     r_recov_g = np.array([r_recov_c, r_recov_m, r_recov_p, r_recov_t])
 
-    return r_recov_g, s_cu_newton
+    q_se_st = (0.8 * S_Cu_max * (Q_St - Q_Fabrication_Buffer)) / s_cu_newton
+
+    return r_recov_g, s_cu_newton, q_se_st
 
     p_sum_dis_col_eaf = p_col + p_dis + exog_eaf
     price_diff_Pr_Se = p_prst - p_sum_dis_col_eaf
