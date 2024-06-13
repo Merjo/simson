@@ -10,7 +10,7 @@ from src.base_model.model_tools import get_dsm_data, get_stock_data_country_spec
 from src.base_model.load_dsms import load_dsms
 from src.base_model.load_params import get_cullen_fabrication_yield, get_cullen_forming_yield, \
     get_wittig_distributions, get_worldsteel_recovery_rates, get_daehn_external_copper_rate, \
-    get_daehn_tolerances, get_daehn_good_intermediate_distribution
+    get_daehn_tolerances, get_daehn_good_intermediate_distribution, get_cullen_production_yield
 from src.calc_trade.calc_trade import get_trade
 from src.calc_trade.calc_scrap_trade import get_scrap_trade
 from src.calc_trade.calc_indirect_trade import get_indirect_trade
@@ -102,18 +102,23 @@ def set_up_model(regions):
                             'Good': Classification(Name='Goods', Dimension='Material', ID=5,
                                                    Items=cfg.in_use_categories),
                             'Scenario': Classification(Name='Scenario', Dimension='Scenario', ID=6,
-                                                       Items=cfg.scenarios)}
+                                                       Items=cfg.scenarios),
+                            'Production': Classification(Name='Production', Dimension='Production', ID=7,
+                                                         Items=['BOF', 'EAF'])}
     model_time_start = cfg.start_year
     model_time_end = cfg.end_year
-    index_table = pd.DataFrame({'Aspect': ['Time', 'Element', 'Region', 'Intermediate', 'Good', 'Scenario'],
-                                'Description': ['Model aspect "Time"', 'Model aspect "Element"',
-                                                'Model aspect "Region"', 'Model aspect "Intermediate"',
-                                                'Model aspect "Good"', 'Model aspect "Scenario"'],
-                                'Dimension': ['Time', 'Element', 'Region', 'Material', 'Material',
-                                              'Scenario'],
-                                'Classification': [model_classification[Aspect] for Aspect in
-                                                   ['Time', 'Element', 'Region', 'Intermediate', 'Good', 'Scenario']],
-                                'IndexLetter': ['t', 'e', 'r', 'i', 'g', 's']})
+    index_table = pd.DataFrame(
+        {'Aspect': ['Time', 'Element', 'Region', 'Intermediate', 'Good', 'Scenario', 'Production'],
+         'Description': ['Model aspect "Time"', 'Model aspect "Element"',
+                         'Model aspect "Region"', 'Model aspect "Intermediate"',
+                         'Model aspect "Good"', 'Model aspect "Scenario"',
+                         'Model aspect "Production"'],
+         'Dimension': ['Time', 'Element', 'Region', 'Material', 'Material',
+                       'Scenario', 'Production'],
+         'Classification': [model_classification[Aspect] for Aspect in
+                            ['Time', 'Element', 'Region', 'Intermediate', 'Good', 'Scenario',
+                             'Production']],
+         'IndexLetter': ['t', 'e', 'r', 'i', 'g', 's', 'p']})
     index_table.set_index('Aspect', inplace=True)
 
     main_model = SimDiGraph_MFAsystem(Name='SIMSON',
@@ -162,6 +167,7 @@ def initiate_parameters(main_model):
     copper_rate = get_daehn_external_copper_rate()
     tolerances = get_daehn_tolerances()
     gi_distribution = get_daehn_good_intermediate_distribution()
+    production_yield = get_cullen_production_yield()
 
     parameter_dict['Forming_Yield'] = Parameter(Name='Forming_Yield', ID=0,
                                                 P_Res=FORM_PID, MetaData=None, Indices='i',
@@ -171,22 +177,26 @@ def initiate_parameters(main_model):
                                                     P_Res=FABR_PID, MetaData=None, Indices='g',
                                                     Values=fabrication_yield, Unit='1')
 
-    parameter_dict['Recovery_Rate'] = Parameter(Name='Recovery Rate', ID=2,
+    parameter_dict['Production_Yield'] = Parameter(Name='Production_Yield', ID=2,
+                                                   P_Res=FABR_PID, MetaData=None, Indices='p',
+                                                   Values=production_yield, Unit='1')
+
+    parameter_dict['Recovery_Rate'] = Parameter(Name='Recovery Rate', ID=3,
                                                 P_Res=EOL_PID,
                                                 MetaData=None, Indices='g',
                                                 Values=recovery_rate, Unit='1')
 
-    parameter_dict['External_Copper_Rate'] = Parameter(Name='External_Copper_Rate', ID=3,
+    parameter_dict['External_Copper_Rate'] = Parameter(Name='External_Copper_Rate', ID=4,
                                                        P_Res=RECYCLE_PID,
                                                        MetaData=None, Indices='g',
                                                        Values=copper_rate, Unit='1')
 
-    parameter_dict['Copper_Tolerances'] = Parameter(Name='Copper_Tolerances', ID=4,
+    parameter_dict['Copper_Tolerances'] = Parameter(Name='Copper_Tolerances', ID=5,
                                                     P_Res=IP_PID,
                                                     MetaData=None, Indices='i',
                                                     Values=tolerances, Unit='1')
 
-    parameter_dict['Good_Intermediate_Distribution'] = Parameter(Name='Good_Intermediate_Distribution', ID=5,
+    parameter_dict['Good_Intermediate_Distribution'] = Parameter(Name='Good_Intermediate_Distribution', ID=6,
                                                                  P_Res=IP_PID,
                                                                  MetaData=None, Indices='gi',
                                                                  Values=gi_distribution, Unit='1')
@@ -262,7 +272,10 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
     # Compute upper cycle
     # production, trade, forming_fabrication, fabrication_use, indirect_trade, inflows, stocks, outflows
 
-    forming_yield, fabrication_yield, recovery_rate, copper_rate, tolerances, gi_distribution = _get_params(model)
+    forming_yield, fabrication_yield, production_yield, recovery_rate, copper_rate, tolerances, gi_distribution = \
+        _get_params(model)
+
+    production_yield = np.average(production_yield)
 
     reuse = None  # TODO: necessary?
     # TODO: Decide Reuse what to do
@@ -285,6 +298,8 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
     fabrication_buffer[1:] = forming_scrap[:-1] + fabrication_scrap[:-1]
     outflow_buffer = np.zeros_like(outflows)
     outflow_buffer[1:] = outflows[:-1]
+    # fabrication_buffer = forming_scrap + fabrication_scrap
+    # outflow_buffer = outflows
     """
     iron_production, scrap_in_bof, bof_production, eaf_production, use_eol, use_obsolete, scrap_imports, \
     scrap_exports, eol_recycling, recycling_scrap, scrap_excess = \
@@ -306,12 +321,13 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
 
     do_econ_model = cfg.recycling_strategy == 'econ'
     if do_econ_model:
-        q_st = production_by_intermediate
+        q_st = production_by_intermediate / production_yield
         q_eol = outflow_buffer
         prices = get_steel_prices()  # TODO: change to REMIND dataset
         initial_price = prices[0]
+        buffer_eol_best_guess = np.einsum(f'trgs,g->trgs', outflow_buffer, recovery_rate)
         scrap_imports, scrap_exports = get_scrap_trade(country_specific=country_specific,
-                                                       available_scrap_by_category=q_eol)
+                                                       available_scrap_by_category=buffer_eol_best_guess)
         # TODO: note - in  econ model, scrpa trade is scaled by BUFFER not available scrap after recycling as this
         #  shall be calculated via the econ moddle
 
@@ -344,21 +360,21 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
                                                                              r_0_recov_g, ip_tlrc_i, s_cu_alloy_g,
                                                                              s_cu_max)
 
-    recovery_and_copper_rate_dims = 'trgs' if do_econ_model else 'g'
-    buffer_eol = np.einsum(f'trgs,{recovery_and_copper_rate_dims}->trgs', outflow_buffer, recovery_rate)
+    recovery_rate_dims = 'trgs' if do_econ_model else 'g'
+    copper_rate_dims = 'trs' if do_econ_model else 'g'
+    buffer_eol = np.einsum(f'trgs,{recovery_rate_dims}->trgs', outflow_buffer, recovery_rate)
     buffer_obsolete = outflow_buffer - buffer_eol
 
-    if not do_econ_model:
-        scrap_imports, scrap_exports = get_scrap_trade(country_specific=country_specific,
-                                                       available_scrap_by_category=buffer_eol)
+    scrap_imports, scrap_exports = get_scrap_trade(country_specific=country_specific,
+                                                   available_scrap_by_category=buffer_eol)
 
     total_eol_scrap = buffer_eol + scrap_imports - scrap_exports
-    scrap_is_positive = np.all(total_eol_scrap >= 0)
+    scrap_is_positive = np.all(total_eol_scrap[124:] >= 0)
     if not scrap_is_positive:
         raise RuntimeError('Scrap is not positive')
     eol_recycling = total_eol_scrap
     recycling_scrap = total_eol_scrap
-    cu_external = np.einsum(f'trgs,{recovery_and_copper_rate_dims}->trgs', eol_recycling, copper_rate)
+    cu_external = np.einsum(f'trgs,{copper_rate_dims}->trgs', eol_recycling, copper_rate)
     available_scrap = np.sum(recycling_scrap, axis=2) + fabrication_buffer
     scrap_in_production = np.zeros_like(production)
     scrap_used_rate = np.zeros_like(production)
@@ -378,7 +394,7 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
     for t in range(1, 201):
         cu_buffer[t] = cu_outflows[t - 1]
         cu_fabrication_buffer[t] = cu_forming_scrap[t - 1] + cu_fabrication_scrap[t - 1]
-        cu_buffer_eol[t] = np.einsum('rgs,g->rgs', cu_buffer[t], recovery_rate)
+        cu_buffer_eol[t] = np.einsum(f'rgs,{recovery_rate_dims}->rgs', cu_buffer[t], recovery_rate)
         cu_scrap_imports[t], cu_scrap_exports[t] = _calc_cu_trade(cu_buffer_eol[t], buffer_eol[t],
                                                                   scrap_imports[t], scrap_exports[t])
         cu_total_eol_scrap_t = cu_buffer_eol[t] + cu_scrap_imports[t] - cu_scrap_exports[t]
@@ -608,12 +624,13 @@ def _get_params(model):
     params = model.ParameterDict
     forming_yield = params['Forming_Yield'].Values
     fabrication_yield = params['Fabrication_Yield'].Values
+    production_yield = params['Production_Yield'].Values
     recovery_rate = params['Recovery_Rate'].Values
     copper_rate = params['External_Copper_Rate'].Values
     tolerances = params['Copper_Tolerances'].Values
     gi_distribution = params['Good_Intermediate_Distribution'].Values
 
-    return forming_yield, fabrication_yield, recovery_rate, copper_rate, tolerances, gi_distribution
+    return forming_yield, fabrication_yield, production_yield, recovery_rate, copper_rate, tolerances, gi_distribution
 
 
 def _calc_eaf_share_production(scrap_share):

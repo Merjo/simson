@@ -1,5 +1,5 @@
 import numpy as np
-from src.calc_trade.calc_trade_tools import get_trade_category_percentages, \
+from src.calc_trade.calc_trade_tools import get_trade_category_percentages, balance_trade, \
     expand_trade_to_past_and_future, get_imports_and_exports_from_net_trade, get_trade_test_data, visualize_trade
 from src.tools.tools import get_np_from_df
 from src.read_data.load_data import load_scrap_trade_1971_2022
@@ -12,6 +12,8 @@ def get_scrap_trade(country_specific, available_scrap_by_category):
                                                       scaler=scaler,
                                                       first_available_year=1971,
                                                       last_available_year=2022)
+
+    net_scrap_trade = balance_trade(net_scrap_trade)
 
     scrap_imports, scrap_exports = _recalculate_scrap_trade_based_on_scrap_availability(net_scrap_trade,
                                                                                         available_scrap_by_category)
@@ -59,6 +61,13 @@ def _recalculate_scrap_trade_based_on_scrap_availability(projected_scrap_trade, 
 
     scrap_imports = np.einsum('trs,ts->trs', scrap_imports, factor)
     scrap_exports = np.minimum(scrap_exports, available_scrap)
+
+    if np.any(factor[124:] < 0):
+        a = 0
+
+    test = np.all((available_scrap - scrap_exports)[124:] > 0)
+    if not test:
+        a = 0
 
     return scrap_imports, scrap_exports
 

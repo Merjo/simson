@@ -5,8 +5,10 @@ from src.tools.config import cfg
 from src.econ_tramp_model.inform_curves import get_average_recov_elasticity, get_average_dis_elasticity, a_average
 from src.econ_tramp_model.steel_price_curves import get_bof_prices, get_eaf_prices
 
-
 # from src.base_model.simson_base_model import
+global c2_change_counter
+c2_change_counter = 0
+
 
 def calc_tramp_econ_model(q_st_total, q_eol_g, q_fabrication_buffer, t_eol_share, p_0_st, p_st, r_0_recov_g, ip_tlrc_i,
                           s_cu_alloy_g, s_cu_max):
@@ -23,14 +25,15 @@ def calc_tramp_econ_model(q_st_total, q_eol_g, q_fabrication_buffer, t_eol_share
 
     # load parameter
 
-    r_recov_g = np.zeros((201, 12, 4, 5))
-    s_cu = np.zeros((201, 12, 4, 5))
-    q_se_st = np.zeros((201, 12, 4, 5))
+    r_recov_g = np.ones((201, 12, 4, 5)) * 0.8
+    s_cu = np.zeros((201, 12, 5))
+    q_se_st = np.zeros((201, 12, 5))
     q_eol_total = np.sum(q_eol_g, axis=2)
-    for t in range(201):
+    for t in range(123, 201):
         print(f'\n\n\nCalc year {t + 1900}\n\n\n')
         for r in range(12):
             for s in range(5):
+                print(f'\n\n\nCalc year {t + 1900}, region {r}, scenario {s}\n\n\n')
                 trs_r_recov, trs_s_cu, trs_q_se_st = calc_tramp_econ_model_over_trs(q_st_total[t, r, s],
                                                                                     q_fabrication_buffer[t, r, s],
                                                                                     q_eol_total[t, r, s],
@@ -40,17 +43,19 @@ def calc_tramp_econ_model(q_st_total, q_eol_g, q_fabrication_buffer, t_eol_share
                                                                                     s_cu_max[t, r, s],
                                                                                     cfg.exog_eaf_USD98)  # exog_eaf_price[0])
                 r_recov_g[t, r, :, s] = trs_r_recov
-                s_cu[t, r, :, s] = trs_s_cu
-                q_se_st[t, r, :, s] = trs_q_se_st
+                s_cu[t, r, s] = trs_s_cu
+                q_se_st[t, r, s] = trs_q_se_st
+                print(f'\n\nC2 change counter: {c2_change_counter}\n\n')
 
     q_pr_st = q_st_total - q_se_st
+    print(f'\n\nC2 change counter: {c2_change_counter}\n\n')
     return q_pr_st, q_se_st, r_recov_g, s_cu
 
 
 def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_T, Q_EoL_g, p_prst_price, S_Cu_max,
                                    exog_eaf):
     if (Q_EoL_g == 0).any():
-        return np.zeros_like(Q_EoL_g), np.zeros_like(Q_EoL_g), np.zeros_like(Q_EoL_g)
+        return np.zeros_like(Q_EoL), np.zeros_like(Q_EoL), np.zeros_like(Q_EoL)
 
     P_0_col = cfg.p_0_col
     P_0_dis = cfg.p_0_dis
@@ -77,6 +82,14 @@ def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_
     c1 = ((np.sum(Q_EoL_g) / np.sum((1 - R_0_recov_g) * Q_EoL_g)) ** (1 / e_recov)) * (1 + a)
 
     c2 = (0.8 * S_Cu_max * (Q_St - Q_Fabrication_Buffer)) / (Q_EoL * (1 - S_reuse) * (1 + S_EoL_net_T))
+    if abs(c2) < 0.00015:
+        print(f'C2 value was too close to zero ({c2})')
+        if c2 < 0:
+            c2 = -0.00014
+        else:
+            c2 = 0.00015
+        print(f'\n\n\nHence c2 was changed the {c2_change_counter} time. \n\n\n')
+        c2_change_counter += 1
 
     print('c2 value: ', c2)
 
@@ -209,6 +222,9 @@ def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_
     s_cu_bisection = find_root_bisection(start_value_bisec, end_value_bisec)
     s_cu_newton = find_root_newton(s_cu_bisection)
 
+    if np.any(s_cu_newton <= 0) or np.any(s_cu_newton >= 1):
+        raise ValueError(f's_cu_newton wrong: {s_cu_newton}')
+
     print('\n')
     print(f"Root found by bisection method: {s_cu_bisection}")
     print(f"Root found by Newton-Raphson method: {s_cu_newton}")
@@ -223,7 +239,11 @@ def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_
 
     r_recov_g = np.array([r_recov_c, r_recov_m, r_recov_p, r_recov_t])
 
+    r_recov_g = np.maximum(0, r_recov_g)
+
     q_se_st = (0.8 * S_Cu_max * (Q_St - Q_Fabrication_Buffer)) / s_cu_newton
+
+    q_se_st = np.maximum(0, q_se_st)
 
     return r_recov_g, s_cu_newton, q_se_st
 
