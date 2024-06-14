@@ -272,7 +272,7 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
     # Compute upper cycle
     # production, trade, forming_fabrication, fabrication_use, indirect_trade, inflows, stocks, outflows
 
-    forming_yield, fabrication_yield, production_yield, recovery_rate, copper_rate, tolerances, gi_distribution = \
+    forming_yield, fabrication_yield, production_yield, recovery_rate, ext_copper_rate, tolerances, gi_distribution = \
         _get_params(model)
 
     production_yield = np.average(production_yield)
@@ -319,32 +319,23 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
     cu_iron_production, cu_bof_production, cu_eaf_production, cu_scrap_in_bof = \
         _create_cu_flows(production, fabrication_use, forming_intermediate)
 
-    do_econ_model = cfg.recycling_strategy == 'econ'
+    do_econ_model = cfg.do_model_economy
     if do_econ_model:
         q_st = production_by_intermediate / production_yield
         q_eol = outflow_buffer
-        prices = get_steel_prices()  # TODO: change to REMIND dataset
-        initial_price = prices[0]
         buffer_eol_best_guess = np.einsum(f'trgs,g->trgs', outflow_buffer, recovery_rate)
         scrap_imports, scrap_exports = get_scrap_trade(country_specific=country_specific,
                                                        available_scrap_by_category=buffer_eol_best_guess)
         # TODO: note - in  econ model, scrpa trade is scaled by BUFFER not available scrap after recycling as this
         #  shall be calculated via the econ moddle
 
-        r_0_recov_g = recovery_rate
         ip_tlrc_i = tolerances
-        print(ip_tlrc_i)
-        s_cu_alloy_g = np.einsum('gi,g->g', gi_distribution, copper_rate) * 0.8
-
         t_eol_g = scrap_imports - scrap_exports
         q_eol_total = np.sum(q_eol, axis=2)
         t_eol_share = np.divide(np.sum(t_eol_g, axis=2),
                                 q_eol_total,
                                 out=np.zeros_like(production),
                                 where=q_eol_total != 0)
-        p_st = prices
-        p_0_st = initial_price
-
         # calculation of s_cu_max
         s_cu_max_numerator = np.einsum('tris,i->tris', production_by_intermediate, ip_tlrc_i)
         sum_numerator = np.einsum('tris->trs', s_cu_max_numerator)
@@ -355,14 +346,16 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
 
         q_primary_scrap = fabrication_buffer
 
-        q_pr_st, q_se_st, recovery_rate, copper_rate = calc_tramp_econ_model(q_st_total, q_eol, q_primary_scrap,
-                                                                             t_eol_share, p_0_st, p_st,
-                                                                             r_0_recov_g, ip_tlrc_i, s_cu_alloy_g,
-                                                                             s_cu_max)
+        q_pr_st, q_se_st, econ_recovery_rate, total_copper_rate = calc_tramp_econ_model(q_st_total, q_eol,
+                                                                                        q_primary_scrap,
+                                                                                        t_eol_share, s_cu_max)
 
-    recovery_rate_dims = 'trgs' if do_econ_model else 'g'
-    copper_rate_dims = 'trs' if do_econ_model else 'g'
-    buffer_eol = np.einsum(f'trgs,{recovery_rate_dims}->trgs', outflow_buffer, recovery_rate)
+    econ_start_index = cfg.econ_start_index
+    buffer_eol = np.einsum(f'trgs,g->trgs', outflow_buffer, recovery_rate)
+    if do_econ_model:
+        buffer_eol[econ_start_index:] = np.einsum(f'trgs,trgs->trgs',
+                                                  outflow_buffer[econ_start_index:],
+                                                  econ_recovery_rate[econ_start_index:])
     buffer_obsolete = outflow_buffer - buffer_eol
 
     scrap_imports, scrap_exports = get_scrap_trade(country_specific=country_specific,
@@ -374,7 +367,7 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
         raise RuntimeError('Scrap is not positive')
     eol_recycling = total_eol_scrap
     recycling_scrap = total_eol_scrap
-    cu_external = np.einsum(f'trgs,{copper_rate_dims}->trgs', eol_recycling, copper_rate)
+    cu_external = np.einsum(f'trgs,g->trgs', eol_recycling, ext_copper_rate)  # is changed for econ model
     available_scrap = np.sum(recycling_scrap, axis=2) + fabrication_buffer
     scrap_in_production = np.zeros_like(production)
     scrap_used_rate = np.zeros_like(production)
@@ -392,35 +385,54 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
     lifetime_matrix = calc_lifetime_matrix(mean, std_dev, n_years=201)
 
     for t in range(1, 201):
+        do_econ_model_this_year = False
+        if t >= econ_start_index:
+            do_econ_model_this_year = True
+
         cu_buffer[t] = cu_outflows[t - 1]
         cu_fabrication_buffer[t] = cu_forming_scrap[t - 1] + cu_fabrication_scrap[t - 1]
-        cu_buffer_eol[t] = np.einsum(f'rgs,{recovery_rate_dims}->rgs', cu_buffer[t], recovery_rate)
+        current_recovery_rate = econ_recovery_rate[t] if do_econ_model_this_year else recovery_rate
+        recovery_rate_dims = 'rgs' if do_econ_model_this_year else 'g'
+        cu_buffer_eol[t] = np.einsum(f'rgs,{recovery_rate_dims}->rgs', cu_buffer[t], current_recovery_rate)
+
+        if do_econ_model_this_year:
+            a = 0
+
         cu_scrap_imports[t], cu_scrap_exports[t] = _calc_cu_trade(cu_buffer_eol[t], buffer_eol[t],
                                                                   scrap_imports[t], scrap_exports[t])
+
+        if do_econ_model_this_year:
+            a = 0
         cu_total_eol_scrap_t = cu_buffer_eol[t] + cu_scrap_imports[t] - cu_scrap_exports[t]
         cu_eol_recycling[t] = cu_total_eol_scrap_t
+        if do_econ_model_this_year:
+            cu_external[t] = _calc_econ_cu_external(total_copper_rate[t], ext_copper_rate, total_eol_scrap[t],
+                                                    cu_total_eol_scrap_t)
         cu_recycling_scrap[t] = cu_total_eol_scrap_t + cu_external[t]
         cu_available_scrap[t] = cu_fabrication_buffer[t] + np.sum(cu_recycling_scrap[t], axis=1)
         cu_tolerated[t] = np.einsum('ris,i->ris', production_by_intermediate[t], tolerances)
         cu_tolerated_sum_t = np.sum(cu_tolerated[t], axis=1)
-        if cfg.recycling_strategy == 'tramp':
+        if do_econ_model_this_year:
+            scrap_in_production[t] = np.minimum(available_scrap[t], production[t])
+            scrap_used_rate[t] = np.divide(scrap_in_production[t], available_scrap[t],
+                                           out=np.zeros_like(scrap_in_production[t]),
+                                           where=available_scrap[t] != 0)
+            cu_scrap_in_production[t] = cu_available_scrap[t] * scrap_used_rate[t]
+        elif cfg.recycling_strategy == 'tramp':
             cu_scrap_in_production[t] = np.minimum(cu_available_scrap[t], cu_tolerated_sum_t)
             scrap_used_rate[t] = np.divide(cu_scrap_in_production[t], cu_available_scrap[t],
                                            out=np.zeros_like(cu_scrap_in_production[t]),
                                            where=cu_available_scrap[t] != 0)
             scrap_in_production[t] = available_scrap[t] * scrap_used_rate[t]
-        else:
-            if cfg.recycling_strategy == 'base':
-                max_scrap_in_production_t = production[t] * max_scrap_share_in_production[t]
-                scrap_in_production[t] = np.minimum(available_scrap[t], max_scrap_in_production_t)
-            elif cfg.recycling_strategy == 'econ':
-                scrap_in_production[t] = np.minimum(available_scrap[t], production[t])
-            else:
-                raise RuntimeError(f'Recycling strategy has to be base or tramp or econ, not {cfg.recycling_strategy}')
+        elif cfg.recycling_strategy == 'base':
+            max_scrap_in_production_t = production[t] * max_scrap_share_in_production[t]
+            scrap_in_production[t] = np.minimum(available_scrap[t], max_scrap_in_production_t)
             scrap_used_rate[t] = np.divide(scrap_in_production[t], available_scrap[t],
                                            out=np.zeros_like(scrap_in_production[t]),
                                            where=available_scrap[t] != 0)
             cu_scrap_in_production[t] = cu_available_scrap[t] * scrap_used_rate[t]
+        else:
+            raise RuntimeError(f'Recycling strategy has to be base or tramp or econ, not {cfg.recycling_strategy}')
 
         cu_tolerated_share_t = np.divide(cu_scrap_in_production[t], cu_tolerated_sum_t,
                                          out=np.zeros_like(cu_scrap_in_production[t]),
@@ -516,6 +528,18 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
     return inflows, outflows
 
 
+def _calc_econ_cu_external(total_copper_rate, ext_copper_rate, scrap, cu_internal_scrap):
+    total_copper = np.einsum('rs,rgs->rs', total_copper_rate, scrap)
+    factor = np.einsum('g,h->gh', ext_copper_rate, 1 / ext_copper_rate)  # 'h' denotes another axis of the 'g' dimension
+    divisor = np.einsum('rgs,hg->rhs', scrap, factor)
+    inv_divisor = np.divide(1, divisor, out=np.zeros_like(divisor), where=divisor != 0)
+    copper_rate_g = np.einsum('rs,rgs->rgs', total_copper, inv_divisor)
+    total_copper_g = np.einsum('rgs,rgs->rgs', copper_rate_g, scrap)
+    cu_external = total_copper_g - cu_internal_scrap
+
+    return cu_external
+
+
 def _calc_cu_trade(cu_inflow, inflow, imports, exports):
     export_share = np.divide(exports, inflow, out=np.zeros_like(exports), where=inflow != 0)
     cu_exports = export_share * cu_inflow
@@ -532,6 +556,8 @@ def _compute_lower_cycle(country_specific, outflows, recovery_rate, copper_rate,
                          forming_intermediate, imports, exports, intermediate_fabrication, fabrication_use,
                          indirect_imports, indirect_exports,
                          max_scrap_share_in_production, forming_scrap, fabrication_scrap):
+    ## TODO: Delete this function? Not used, cfg.recycling_strategy == 'econ' doesn't make sense anymore
+
     lower_cycle_function = None
     if cfg.recycling_strategy == 'base':
         lower_cycle_function = lower_cycle_base_model

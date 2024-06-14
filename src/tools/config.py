@@ -27,7 +27,9 @@ class Config:
         self.end_year = 2100
 
         self.curve_strategy = 'Duerrwaechter'  # Options: Pauliuk, Pehl, Duerrwaechter, LSTM
-        self.recycling_strategy = 'econ'  # Options: base, tramp, econ  # TODO:  Implement tramp + econ
+        self.recycling_strategy = 'tramp'  # Options: base, tramp
+        self.do_model_economy = True
+        self.econ_base_year = 2023
         self.steel_data_source = 'IEDatabase'  # Options: Mueller, IEDatabase, ScrapAge
         self.pop_data_source = 'UN'  # Options: UN, KC-Lutz (only for scenarios)
         self.gdp_data_source = 'Koch-Leimbach'  # Options: IMF, Koch-Leimbach (only for scenarios)
@@ -75,10 +77,6 @@ class Config:
         self.max_scrap_share_production_base_model = 0.60
         self.scrap_in_BOF_rate = 0.22
         self.forming_yield = 0.937246
-
-        # econ base_model configurations
-        self.do_model_economy = False
-        self.econ_base_year = 2023
 
         self.elasticity_steel = -0.3
         self.elasticity_scrap_recovery_rate = -1

@@ -30,7 +30,7 @@ def compute_upper_cycle(model_type=cfg.model_type, country_specific=False):  # d
     past_fabrication_use = _add_scenario_dimension(past_fabrication_use)
     past_indirect_trade = _add_scenario_dimension(past_indirect_trade)
 
-    do_econ_model = cfg.recycling_strategy == 'econ'
+    do_econ_model = cfg.do_model_economy
     future_dsms = load_model_dsms(country_specific=country_specific,
                                   do_past_not_future=False,
                                   model_type=model_type,
