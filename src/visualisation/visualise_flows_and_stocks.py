@@ -10,6 +10,7 @@ from src.predict.calc_steel_stocks import get_np_pop_data
 # MAIN PARAMETERS
 
 do_flow_not_stock = False
+do_iron_not_copper = True
 flow_origin_process = FABR_PID
 flow_destination_process = USE_PID
 stock_process = USE_PID
@@ -22,10 +23,10 @@ default_region = 'JPN'  # If dimension is not 'region', only data from this regi
 
 # SPECIFIC PARAMETERS
 
-do_load_econ_model = False
+do_load_econ_model = cfg.do_model_economy
 region_data_source = 'REMIND'  # Options: REMIND, Pauliuk, REMIND_EU
-steel_data_source = 'Mueller'  # Options: Mueller, IEDatabase
-curve_strategy = 'LSTM'  # Options: Pauliuk, Pehl, Duerrwaechter, LSTM
+steel_data_source = 'IEDatabase'  # Options: Mueller, IEDatabase
+curve_strategy = 'Duerrwaechter'  # Options: Pauliuk, Pehl, Duerrwaechter, LSTM
 model_type = 'inflow'  # Options: ['change', 'stock', 'inflow']
 per_capita = True
 ignore_1900 = False
@@ -41,7 +42,7 @@ end_year = 2050
 
 # If getting wrong results it might be that recalculating base_model and dsms help.
 # This is especially relevant when config has been changed after last load of base_model.
-force_recalculate = True
+force_recalculate = False
 
 
 def visualise():
@@ -109,6 +110,10 @@ def _prepare_values(flow, name, regions):
     n_dims = len(flow_dims)
     dim_idx = flow_dims.index(wanted_dim)
     values = flow.Values
+    iron_copper_index = 0 if do_iron_not_copper else 1
+    values = values[:, iron_copper_index]
+    dim_idx -= 1
+    n_dims -= 1
 
     # if per_capita:
     #    values = _transfer_flows_to_per_capita(values, flow_dims, cfg.include_gdp_and_pop_scenarios_in_prediction)
@@ -122,7 +127,7 @@ def _prepare_values(flow, name, regions):
     if not wanted_dim == 'r':
         # select default region
         if default_region == 'World':
-            values = np.sum(values, axis=2)
+            values = np.sum(values, axis=1)
         else:
             default_region_idx = regions.index(default_region)
             values = values[:, :, default_region_idx]
@@ -185,7 +190,7 @@ def _get_model_for_visualisation():
         cfg.model_type = model_type
         recalculate = True
 
-    if do_load_econ_model:
+    if False:  # do_load_econ_model:
         return load_simson_econ_model(recalculate=recalculate, recalculate_dsms=recalculate)
     else:
         return load_simson_base_model(recalculate=recalculate, recalculate_dsms=recalculate)

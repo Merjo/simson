@@ -290,6 +290,10 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
 
     production, forming_intermediate, imports, exports, intermediate_fabrication, fabrication_use, \
     indirect_imports, indirect_exports, inflows, stocks, outflows = compute_upper_cycle_modelling_approaches()
+
+    inflow_production = production / production_yield
+    production_scrap = inflow_production - production
+
     forming_scrap = np.einsum('tris,i->trs', forming_intermediate, (1 / forming_yield - 1))
 
     fabrication_scrap = np.einsum('trgs,g->trs', fabrication_use, (1 / fabrication_yield - 1))
@@ -386,12 +390,14 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
 
     for t in range(1, 201):
         do_econ_model_this_year = False
-        if t >= econ_start_index:
+        if t >= econ_start_index and cfg.do_model_economy:
             do_econ_model_this_year = True
 
         cu_buffer[t] = cu_outflows[t - 1]
         cu_fabrication_buffer[t] = cu_forming_scrap[t - 1] + cu_fabrication_scrap[t - 1]
-        current_recovery_rate = econ_recovery_rate[t] if do_econ_model_this_year else recovery_rate
+        current_recovery_rate = recovery_rate
+        if do_econ_model_this_year:
+            current_recovery_rate = econ_recovery_rate[t]
         recovery_rate_dims = 'rgs' if do_econ_model_this_year else 'g'
         cu_buffer_eol[t] = np.einsum(f'rgs,{recovery_rate_dims}->rgs', cu_buffer[t], current_recovery_rate)
 
