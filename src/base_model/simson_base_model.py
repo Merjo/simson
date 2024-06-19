@@ -21,7 +21,7 @@ from src.recycling_strategies.economic_tramp_elements import lower_cycle_econ_tr
 from src.modelling_approaches.compute_upper_cycle import compute_upper_cycle
 from src.modelling_approaches.model_1_inflow_driven import distribute_intermediate_good, calc_lifetime_matrix
 from src.read_data.load_data import load_lifetimes
-from src.base_model.tramp_econ_model import calc_tramp_econ_model, calc_tramp_econ_model_over_trs
+from src.base_model.tramp_econ_model import calc_tramp_econ_model_over_trs, root_newton_numerato_func_changer
 from src.economic_model.econ_model_tools import get_steel_prices
 from src.econ_tramp_model.steel_price_curves import get_bof_prices, get_eaf_prices
 
@@ -349,7 +349,7 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
     buffer_eol = np.einsum(f'trgs,g->trgs', outflow_buffer, recovery_rate)
     scrap_imports, scrap_exports = get_scrap_trade(country_specific=country_specific,
                                                    available_scrap_by_category=buffer_eol)
-
+    numerator_change_counter = 0
     for t in range(1, 201):
         cu_buffer[t] = cu_outflows[t - 1]
         cu_fabrication_buffer[t] = cu_forming_scrap[t - 1] + cu_fabrication_scrap[t - 1]
@@ -427,7 +427,8 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
                                                                                         cfg.exog_eaf_USD98,
                                                                                         s_cu_alloy_g_t[r, :,
                                                                                         s],
-                                                                                        check)  # exog_eaf_price[0])
+                                                                                        check,
+                                                                                        numerator_change_counter)  # exog_eaf_price[0])
                     r_recov_g[r, :, s] = trs_r_recov
                     s_cu[r, s] = trs_s_cu
                     q_se_st[r, s] = trs_q_se_st
@@ -534,6 +535,8 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
         cu_inflows[t] = cu_fabrication_use[t] + cu_indirect_imports[t] - cu_indirect_exports[t]
         cu_outflows[t] = np.einsum('trgs,trg->rgs', cu_inflows[:t + 1], lifetime_matrix[t, :t + 1])
         cu_stocks[t] = cu_stocks[t - 1] + cu_inflows[t] - cu_outflows[t]
+
+    print(f'\n\n Root newton numerator was changed this many times: {numerator_change_counter}\n\n')
 
     scrap_share = np.divide(scrap_in_production, production,
                             out=np.zeros_like(scrap_in_production), where=production != 0)

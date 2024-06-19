@@ -9,15 +9,15 @@ from src.predict.calc_steel_stocks import get_np_pop_data
 
 # MAIN PARAMETERS
 
-do_flow_not_stock = False
+do_flow_not_stock = True
 do_iron_not_copper = True
-flow_origin_process = FABR_PID
-flow_destination_process = USE_PID
+flow_origin_process = USE_PID
+flow_destination_process = BUF_PID
 stock_process = USE_PID
-dimension = 'region'  # Options (depending on flow): 'region', 'scenario', 'good', 'waste'
+dimension = 'good'  # Options (depending on flow): 'region', 'scenario', 'good', 'waste'
 
 default_scenario = 'SSP2'  # If dimension is not 'scenario', only data from this scenario is considered.
-default_region = 'JPN'  # If dimension is not 'region', only data from this region is considered.
+default_region = 'World'  # If dimension is not 'region', only data from this region is considered.
 # 'World' denotes the entire world data, hence a sum is given for all world regions.
 # Default region must be in region names list of 'region_data_source'.
 
@@ -190,7 +190,7 @@ def _get_model_for_visualisation():
         cfg.model_type = model_type
         recalculate = True
 
-    if False:  # do_load_econ_model:
+    if False:  # do_load_econ_model:  #TODO Delete?
         return load_simson_econ_model(recalculate=recalculate, recalculate_dsms=recalculate)
     else:
         return load_simson_base_model(recalculate=recalculate, recalculate_dsms=recalculate)

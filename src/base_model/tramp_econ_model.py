@@ -9,7 +9,8 @@ from src.econ_tramp_model.steel_price_curves import get_bof_prices, get_eaf_pric
 global c2_change_counter
 c2_change_counter = 0
 global print_messages
-print_messages = True
+print_messages = False
+root_newton_numerato_func_changer = 0
 
 
 def calc_tramp_econ_model(q_st_total, q_eol_g, q_fabrication_buffer, t_eol_share, s_cu_max):
@@ -269,7 +270,7 @@ def _warn_too_high_r_free(type: str):
 
 
 def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_T, Q_EoL_g, p_prst_price, S_Cu_max,
-                                   exog_eaf, S_Cu_alloy_g, check):
+                                   exog_eaf, S_Cu_alloy_g, check, numerator_change_counter):
     # Constants
     P_0_col = cfg.p_0_col  # 150 #cfg.p_0_col
     P_0_dis = cfg.p_0_dis  # 150 #cfg.p_0_dis
@@ -348,7 +349,7 @@ def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_
     # Finding root of P_dis_ numerator Newton
     initial_guess = c2 * 1.0000001
 
-    def find_newton_numerator(numerator_P_dis_expr, initial_guess, c2_value):
+    def find_newton_numerator(numerator_P_dis_expr, initial_guess, c2_value, numerator_change_counter):
         if check:
             a = 0
         if c2_value < 0:
@@ -368,16 +369,15 @@ def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_
                 root_newton_numerator_func = 0
                 print('No root exists for the numerator with the given parameters!')
 
-        if root_newton_numerator_func > 5:
+        if root_newton_numerator_func > 1 or root_newton_numerator_func < 0:
             root_newton_numerator_func = 0
-            print('Root newton numerator func was changed manually due to too high values.')
+            numerator_change_counter += 1
+            print(f'Root newton numerator func was changed manually due to too high values.'
+                  f'\n Change counter is {numerator_change_counter}')
 
         return root_newton_numerator_func
 
-    test = find_newton_numerator(numerator_P_dis_expr, 0.0011975113807783631, 0.001197511261027237)
-    print('test', test)
-
-    root_newton_numerator = find_newton_numerator(numerator_P_dis_expr, initial_guess, c2)
+    root_newton_numerator = find_newton_numerator(numerator_P_dis_expr, initial_guess, c2, numerator_change_counter)
     print('root_newton_numerator is: ', root_newton_numerator)
 
     # Finding root of P_dis_ denominator Newton

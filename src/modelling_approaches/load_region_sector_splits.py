@@ -30,9 +30,10 @@ def get_region_sector_splits():
 
 
 def _restructure_splits(df_splits):
+    df_splits = df_splits.sort_index(axis=1)
     countries = df_splits.index
     df_splits = pd.melt(df_splits.reset_index(), id_vars=['country'], value_name='sector_split',
-                        value_vars=['Transportation', 'Machinery', 'Construction', 'Products'])
+                        value_vars=['Construction', 'Machinery', 'Products', 'Transportation'])
     df_splits.index = pd.MultiIndex.from_product([pd.Index(cfg.in_use_categories, name='category'), countries])
     df_splits = df_splits.drop(columns=['country', 'variable'])
     df_splits = df_splits.swaplevel()
