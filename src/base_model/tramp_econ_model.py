@@ -266,24 +266,24 @@ def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_
 
     # Plots of P_dis, P_dis_numerator, P_dis_denominator
     # Generate a range of S_Cu values for plotting numerator and denominator
-    S_Cu_values_numerator = np.linspace(0.000001, 0.1, 500)
-    numerator_values = [numerator_P_dis_expr(S_Cu) for S_Cu in S_Cu_values_numerator]
+    # S_Cu_values_numerator = np.linspace(0.000001, 0.1, 500)
+    # numerator_values = [numerator_P_dis_expr(S_Cu) for S_Cu in S_Cu_values_numerator]
 
     # Generate a range of S_Cu values for plotting numerator and denominator
-    S_Cu_values_denominator = np.linspace(0.000001, 0.1, 500)
-    denominator_values = [denominator_P_dis_expr(S_Cu) for S_Cu in S_Cu_values_denominator]
+    # S_Cu_values_denominator = np.linspace(0.000001, 0.1, 500)
+    # denominator_values = [denominator_P_dis_expr(S_Cu) for S_Cu in S_Cu_values_denominator]
 
     # Generate a range of S_Cu values for plotting P_dis
-    S_Cu_values_p_dis = np.linspace(0.000001, 0.3, 100)
-    P_dis_values = [P_dis_expr(S_Cu, P_col_expr(S_Cu_max)) for S_Cu in S_Cu_values_p_dis]
+    # S_Cu_values_p_dis = np.linspace(0.000001, 0.3, 100)
+    # P_dis_values = [P_dis_expr(S_Cu, P_col_expr(S_Cu_max)) for S_Cu in S_Cu_values_p_dis]
 
     # Generate a range of S_Cu values for plotting P_col
-    S_Cu_values_p_col = np.linspace(0.000001, 0.1, 100)
-    P_col_values = [P_col_expr(S_Cu) for S_Cu in S_Cu_values_p_col]
+    # S_Cu_values_p_col = np.linspace(0.000001, 0.1, 100)
+    # P_col_values = [P_col_expr(S_Cu) for S_Cu in S_Cu_values_p_col]
 
     # Plot R_recov_g functions
     # Values for P_col
-    P_col_values = np.linspace(1, 1000, 100)
+    # P_col_values = np.linspace(1, 1000, 100)
 
     if print_messages:
         print('start_value_bisec: ', start_value_bisec)
