@@ -28,6 +28,7 @@ def get_cullen_forming_yield():
 def get_cullen_production_yield():
     production_yield_path = os.path.join(CULLEN_PATH, 'cullen_production_yield.csv')
     production_yield = _load_normal_param_csv(production_yield_path)
+    production_yield /= 100  # production yield is given in %
     return production_yield
 
 

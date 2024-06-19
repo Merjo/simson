@@ -293,7 +293,6 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
     indirect_imports, indirect_exports, inflows, stocks, outflows = compute_upper_cycle_modelling_approaches()
 
     inflow_production = production / production_yield
-    production_scrap = inflow_production - production
 
     forming_scrap = np.einsum('tris,i->trs', forming_intermediate, (1 / forming_yield - 1))
 
@@ -361,7 +360,7 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
         do_econ_model_this_year = False
         if t >= econ_start_index and cfg.do_model_economy:
             do_econ_model_this_year = True
-            q_st = production_by_intermediate[t]  # TODO / production_yield
+            q_st = production_by_intermediate[t]  # / production_yield
             q_eol = outflow_buffer[t]
 
             # TODO: note - in  econ model, scrpa trade is scaled by BUFFER not available scrap after recycling as this
@@ -403,19 +402,21 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
             q_se_st = np.zeros((12, 5))
             # q_eol_total = np.sum(q_eol, axis=1)
 
+            print_messages = False
             for r in range(12):
                 for s in range(5):
-                    print(f'\n\nTimeStamp {t + 1900}, {r}, {s}\n\n\n')
-                    print(f'S_Cu_alloy: {s_cu_alloy_g_t[r, :, s]}')
-                    print(f'Q_St_total: {q_st_total[r, s]}')
-                    print(f'Fabrication Scrap: {q_primary_scrap[r, s]}')
-                    print(f'Q_EOl_Total: {q_eol_total[r, s]}')
-                    print(f'T_Eol_share: {t_eol_share[r, s]}')
-                    print(f'Q_eol_g: {q_eol[r, :, s]}')
-                    print(f'Primary Price: {p_prst_price[t]}')
-                    print(f'Eaf Price: {cfg.exog_eaf_USD98}')
-                    print(f'S_cu_may: {s_cu_max[r, s]}')
-                    check = t == 127 and r == 10 and s == 0
+                    if print_messages:
+                        print(f'\n\nTimeStamp {t + 1900}, {r}, {s}\n\n\n')
+                        print(f'S_Cu_alloy: {s_cu_alloy_g_t[r, :, s]}')
+                        print(f'Q_St_total: {q_st_total[r, s]}')
+                        print(f'Fabrication Scrap: {q_primary_scrap[r, s]}')
+                        print(f'Q_EOl_Total: {q_eol_total[r, s]}')
+                        print(f'T_Eol_share: {t_eol_share[r, s]}')
+                        print(f'Q_eol_g: {q_eol[r, :, s]}')
+                        print(f'Primary Price: {p_prst_price[t]}')
+                        print(f'Eaf Price: {cfg.exog_eaf_USD98}')
+                        print(f'S_cu_may: {s_cu_max[r, s]}')
+                        check = t == 127 and r == 10 and s == 0
 
                     trs_r_recov, trs_s_cu, trs_q_se_st = calc_tramp_econ_model_over_trs(q_st_total[r, s],
                                                                                         q_primary_scrap[r, s],
