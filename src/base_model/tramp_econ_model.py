@@ -58,203 +58,6 @@ def calc_tramp_econ_model(q_st_total, q_eol_g, q_fabrication_buffer, t_eol_share
     return q_pr_st, q_se_st, r_recov_g, s_cu
 
 
-def calc_tramp_econ_model_over_trs_old(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_T, Q_EoL_g, p_prst_price, S_Cu_max,
-                                       exog_eaf, S_Cu_alloy_g):
-    if (Q_EoL_g == 0).any():
-        return np.zeros_like(Q_EoL), np.zeros_like(Q_EoL), np.zeros_like(Q_EoL)
-
-    P_0_col = cfg.p_0_col
-    P_0_dis = cfg.p_0_dis
-    e_dis = get_average_dis_elasticity()
-    e_recov = get_average_recov_elasticity()
-    a = a_average
-    # S_Cu_max = 0.0004  # 0.0004 is the minimum value S_Cu_max can obtain as lowest tolerance is 0.04wt%
-    S_reuse = cfg.s_reuse
-    p_prst = p_prst_price
-    ## S_Cu_alloy_g = np.array([cfg.s_cu_alloy_c, cfg.s_cu_alloy_m, cfg.s_cu_alloy_p,
-    #                        cfg.s_cu_alloy_t])  # np.array([0.8 * 0.002002, 0.8 * 0.002465341, 0.8 * 0.001822651, 0.8 * 0.001985311]) #np.array([cfg.s_cu_alloy_t, cfg.s_cu_alloy_m, cfg.s_cu_alloy_c, cfg.s_cu_alloy_p])
-    S_Cu_0_g = np.array([cfg.s_cu_0_construction, cfg.s_cu_0_machinery, cfg.s_cu_0_products,
-                         cfg.s_cu_0_transport])  # np.array([0.003, 0.0025, 0.001, 0.004]) #np.array([cfg.s_cu_0_transport, cfg.s_cu_0_machinery, cfg.s_cu_0_construction, cfg.s_cu_0_products])
-    R_0_recov_g = np.array([cfg.r_0_recov_construction, cfg.r_0_recov_machinery, cfg.r_0_recov_products,
-                            cfg.r_0_recov_transport])  # np.array([0.9, 0.9, 0.85, 0.5]) #np.array([cfg.r_0_recov_transport, cfg.r_0_recov_machinery, cfg.r_0_recov_construction, cfg.r_0_recov_products])
-    S_Cu = sp.symbols('S_Cu')
-
-    # Defining functions
-    # Recovery rate per good
-    def R_recov_g(g_val, P_col):
-        return 1 - (1 - R_0_recov_g[g_val]) * ((P_col / P_0_col + a) / (1 + a)) ** e_recov
-
-    # variables for P_col
-    c1 = ((np.sum(Q_EoL_g) / np.sum((1 - R_0_recov_g) * Q_EoL_g)) ** (1 / e_recov)) * (1 + a)
-
-    c2 = (0.8 * S_Cu_max * (Q_St - Q_Fabrication_Buffer)) / (Q_EoL * (1 - S_reuse) * (1 + S_EoL_net_T))
-    if abs(c2) < 0.00015:
-        print(f'C2 value was too close to zero ({c2})')
-        if c2 < 0:
-            c2 = -0.00014
-        else:
-            c2 = 0.00015
-        if print_messages:
-            print(f'\n\n\nHence c2 was changed the {c2_change_counter} time. \n\n\n')
-        c2_change_counter += 1
-
-    if print_messages:
-        print('c2 value: ', c2)
-
-    # P_col
-    def P_col_expr(S_Cu):
-        P_col = ((1 - c2 / S_Cu) ** (1 / e_recov) * c1 - a) * P_0_col
-        return P_col
-
-    # P_dis numerator
-    def numerator_P_dis_expr(S_Cu):
-        P_col_val = P_col_expr(S_Cu)
-        return S_Cu * np.sum([R_recov_g(i, P_col_val) * Q_EoL_g[i] for i in range(4)]) - np.sum(
-            [R_recov_g(i, P_col_val) * Q_EoL_g[i] * S_Cu_alloy_g[i] for i in range(4)])
-
-    # P_dis denominator
-    def denominator_P_dis_expr(S_Cu):
-        P_col_val = P_col_expr(S_Cu)
-        return ((1 / P_0_dis) ** e_dis * np.sum([R_recov_g(i, P_col_val) * Q_EoL_g[i] * S_Cu_0_g[i] for i in range(4)]))
-
-    # P_dis
-    def P_dis_expr(S_Cu, P_col):
-        numerator_P_dis_expr = S_Cu * np.sum([R_recov_g(i, P_col) * Q_EoL_g[i] for i in range(4)]) - np.sum(
-            [R_recov_g(i, P_col) * Q_EoL_g[i] * S_Cu_alloy_g[i] for i in range(4)])
-        denominator_P_dis_expr = (1 / P_0_dis) ** e_dis * np.sum(
-            [R_recov_g(i, P_col) * Q_EoL_g[i] * S_Cu_0_g[i] for i in range(4)])
-        P_dis = (numerator_P_dis_expr / denominator_P_dis_expr) ** (1 / e_dis)
-        return P_dis
-
-    # function to solve
-    def function(S_Cu):
-        P_col = P_col_expr(S_Cu)
-        P_dis = P_dis_expr(S_Cu, P_col)
-        return P_col + P_dis + exog_eaf - p_prst
-
-    # derivative of function to solve
-    def derivative(S_Cu, epsilon=1e-6):
-        return (function(S_Cu + epsilon) - function(S_Cu - epsilon)) / (2 * epsilon)
-
-    # Root finding methods
-    def find_root_bisection(a, b, tol=1e-6):
-        return bisect(function, a, b, xtol=tol)
-
-    def find_root_newton(initial_guess, tol=1e-6):
-        return newton(function, initial_guess, fprime=derivative, tol=tol)
-
-    # Finding root of P_dis_ numerator Newton
-    initial_guess = c2 * 1.0000001
-
-    def find_newton_numerator(numerator_P_dis_expr, initial_guess, c2_value):
-        if c2_value < 0:
-            try:
-                root_newton_numerator_func = newton(numerator_P_dis_expr, 0.000001)
-                print(f"The root of the numerator of P_dis if c2<0 is: {root_newton_numerator_func}")
-            except RuntimeError:
-                root_newton_numerator_func = 0
-                print('No root exists for the numerator with the given parameters!')
-        else:
-            try:
-                root_newton_numerator_func = newton(numerator_P_dis_expr, initial_guess)
-                print(f"The root of the numerator of P_dis is: {root_newton_numerator_func}")
-            except RuntimeError:
-                root_newton_numerator_func = 0
-                print('No root exists for the numerator with the given parameters!')
-        return root_newton_numerator_func
-
-    root_newton_numerator = find_newton_numerator(numerator_P_dis_expr, initial_guess, c2)
-
-    # Finding root of P_dis_ denominator Newton
-
-    def find_newton_denominator(denominator_P_dis_expr, initial_guess, c2_value):
-        if c2_value < 0:
-            try:
-                root_newton_denominator_func = newton(denominator_P_dis_expr, 0.000001)
-                print(f"The root of the denominator of P_dis is: {root_newton_denominator_func}")
-            except RuntimeError:
-                root_newton_denominator_func = 0
-                # print('root_newton_denominator: ', root_newton_denominator_func)
-                print(
-                    f"No root exists for the denominator with the given parameters and for c2<0, thus root_newton_denominator_func was set to: {root_newton_denominator_func}")
-        else:
-            try:
-                root_newton_denominator_func = newton(denominator_P_dis_expr, initial_guess)
-                print(f"The root of the denominator of P_dis is: {root_newton_denominator_func}")
-            except RuntimeError:
-                root_newton_denominator_func = 0
-                print(
-                    f"No root exists for the denominator with the given parameters, thus root_newton_denominator_func was set to: {root_newton_denominator_func}")
-        return root_newton_denominator_func
-
-    root_newton_denominator = find_newton_denominator(denominator_P_dis_expr, initial_guess, c2)
-
-    if print_messages:
-        print(f"The root of the denominator of P_dis is: {root_newton_denominator}")
-
-    def decide_starting_values_for_bisec(root_newton_numerator, root_newton_denominator, c2_value_exceeded, c2_value):
-        if c2_value < 0:
-            start_value_bisec_func = root_newton_numerator * 1.000001  # + 0.00000000000001236580800
-            end_value_bisec_func = 0.5
-            print(
-                f"The root of the denominator does not exist for c2<0 ({c2}), thus the new starting value for bisec is the root of the numerator: {start_value_bisec_func}.",
-                f"And the new end value for bisec is: {end_value_bisec_func}")
-        elif root_newton_numerator == 0:
-            start_value_bisec_func = c2_value_exceeded
-            end_value_bisec_func = root_newton_denominator * 0.99999
-            print(
-                f"The root of the numerator is zero, thus the new starting value for bisec is the value of c2*1.00001: {start_value_bisec_func}.",
-                f"And the new end value for bisec is: {end_value_bisec_func}")
-        elif root_newton_denominator > root_newton_numerator:
-            start_value_bisec_func = root_newton_numerator * 1.000001
-            end_value_bisec_func = root_newton_denominator * 0.99999  # Frage, ob dieser Weert wirklich kleiner sein sollte als seine gefundene root
-            print(
-                f"The root of the numerator is smaller than the root of the denominator, thus the new starting value for bisec is: {start_value_bisec_func}.",
-                f"And the new end value for bisec is: {end_value_bisec_func}")
-        elif root_newton_denominator < root_newton_numerator:
-            start_value_bisec_func = root_newton_denominator * 1.00001
-            end_value_bisec_func = root_newton_numerator * 0.99999
-            print(
-                f"The root of the denominator is smaller than the root of the numerator, thus the new starting value for bisec is: {start_value_bisec_func}.",
-                f"And the new end value for bisec is: {end_value_bisec_func}")
-        else:
-            print("Error during root finding")
-        return start_value_bisec_func, end_value_bisec_func
-
-    start_value_bisec, end_value_bisec = decide_starting_values_for_bisec(root_newton_numerator,
-                                                                          root_newton_denominator, initial_guess, c2)
-
-    # solve econ model
-    s_cu_bisection = find_root_bisection(start_value_bisec, end_value_bisec)
-    s_cu_newton = find_root_newton(s_cu_bisection)
-
-    if np.any(s_cu_newton <= 0) or np.any(s_cu_newton >= 1):
-        raise ValueError(f's_cu_newton wrong: {s_cu_newton}')
-
-    if print_messages:
-        print('\n')
-        print(f"Root found by bisection method: {s_cu_bisection}")
-        print(f"Root found by Newton-Raphson method: {s_cu_newton}")
-
-    p_col = P_col_expr(s_cu_newton)
-    p_dis = P_dis_expr(s_cu_newton, p_col)
-
-    r_recov_c = R_recov_g(0, p_col)
-    r_recov_m = R_recov_g(1, p_col)
-    r_recov_p = R_recov_g(2, p_col)
-    r_recov_t = R_recov_g(3, p_col)
-
-    r_recov_g = np.array([r_recov_c, r_recov_m, r_recov_p, r_recov_t])
-
-    r_recov_g = np.maximum(0, r_recov_g)
-
-    q_se_st = (0.8 * S_Cu_max * (Q_St - Q_Fabrication_Buffer)) / s_cu_newton
-
-    q_se_st = np.maximum(0, q_se_st)
-
-    return r_recov_g, s_cu_newton, q_se_st
-
-
 def _get_a_recov(initial_recovery_rate):
     a_recov = 1 / (((1 - initial_recovery_rate) / (1 - cfg.r_free_recov)) ** (
             1 / cfg.elasticity_scrap_recovery_rate) - 1)
@@ -292,9 +95,11 @@ def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_
 
     # variables for P_col
     c1 = ((np.sum(Q_EoL_g) / np.sum((1 - R_0_recov_g) * Q_EoL_g)) ** (1 / e_recov)) * (1 + a)
-    print('c1 value: ', c1)
+    if print_messages:
+        print('c1 value: ', c1)
     c2 = (0.8 * S_Cu_max * (Q_St - Q_Fabrication_Buffer)) / (Q_EoL * (1 - S_reuse) * (1 + S_EoL_net_T))
-    print('c2 value: ', c2)
+    if print_messages:
+        print('c2 value: ', c2)
 
     # P_col
     def P_col_expr(S_Cu):
@@ -355,88 +160,104 @@ def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_
         if c2_value < 0:
             try:
                 root_newton_numerator_func = newton(numerator_P_dis_expr, 0.000001)
-                print(f"The root of the numerator of P_dis if c2<0 is: {root_newton_numerator_func}")
+                if print_messages:
+                    print(f"The root of the numerator of P_dis if c2<0 is: {root_newton_numerator_func}")
             except RuntimeError:
                 root_newton_numerator_func = 0
-                print('No root exists for the numerator with the given parameters!')
+                if print_messages:
+                    print('No root exists for the numerator with the given parameters!')
         else:
             try:
                 if check:
                     a = 0
                 root_newton_numerator_func = newton(numerator_P_dis_expr, initial_guess)
-                print(f"The root of the numerator of P_dis is: {root_newton_numerator_func}")
+                if print_messages:
+                    print(f"The root of the numerator of P_dis is: {root_newton_numerator_func}")
             except RuntimeError:
                 root_newton_numerator_func = 0
-                print('No root exists for the numerator with the given parameters!')
+                if print_messages:
+                    print('No root exists for the numerator with the given parameters!')
 
         if root_newton_numerator_func > 1 or root_newton_numerator_func < 0:
             root_newton_numerator_func = 0
             numerator_change_counter += 1
-            print(f'Root newton numerator func was changed manually due to too high values.'
-                  f'\n Change counter is {numerator_change_counter}')
+            if print_messages:
+                print(f'Root newton numerator func was changed manually due to too high values.'
+                      f'\n Change counter is {numerator_change_counter}')
 
         return root_newton_numerator_func
 
     root_newton_numerator = find_newton_numerator(numerator_P_dis_expr, initial_guess, c2, numerator_change_counter)
-    print('root_newton_numerator is: ', root_newton_numerator)
+    if print_messages:
+        print('root_newton_numerator is: ', root_newton_numerator)
 
     # Finding root of P_dis_ denominator Newton
     def find_newton_denominator(denominator_P_dis_expr, initial_guess, c2_value):
         if c2_value < 0:
             try:
                 root_newton_denominator_func = newton(denominator_P_dis_expr, 0.000001)
-                print(f"The root of the denominator of P_dis is: {root_newton_denominator_func}")
+                if print_messages:
+                    print(f"The root of the denominator of P_dis is: {root_newton_denominator_func}")
             except RuntimeError:
                 root_newton_denominator_func = 0
                 # print('root_newton_denominator: ', root_newton_denominator_func)
-                print(
-                    f"No root exists for the denominator with the given parameters and for c2<0, thus root_newton_denominator_func was set to: {root_newton_denominator_func}")
+                if print_messages:
+                    print(
+                        f"No root exists for the denominator with the given parameters and for c2<0, thus root_newton_denominator_func was set to: {root_newton_denominator_func}")
         else:
             try:
                 root_newton_denominator_func = newton(denominator_P_dis_expr, initial_guess)
-                print(f"The root of the denominator of P_dis is: {root_newton_denominator_func}")
+                if print_messages:
+                    print(f"The root of the denominator of P_dis is: {root_newton_denominator_func}")
             except RuntimeError:
                 root_newton_denominator_func = 0
-                print(
-                    f"No root exists for the denominator with the given parameters, thus root_newton_denominator_func was set to: {root_newton_denominator_func}")
+                if print_messages:
+                    print(
+                        f"No root exists for the denominator with the given parameters, thus root_newton_denominator_func was set to: {root_newton_denominator_func}")
         return root_newton_denominator_func
 
     root_newton_denominator = find_newton_denominator(denominator_P_dis_expr, initial_guess, c2)
-    print(f"The root of the denominator of P_dis is: {root_newton_denominator}")
+    if print_messages:
+        print(f"The root of the denominator of P_dis is: {root_newton_denominator}")
 
     def decide_starting_values_for_bisec(root_newton_numerator, root_newton_denominator, c2_value_exceeded, c2_value):
         if c2_value < 0:
             start_value_bisec_func = root_newton_numerator * 1.000001  # + 0.00000000000001236580800
             end_value_bisec_func = 0.5
-            print(
-                f"The root of the denominator does not exist for c2<0 ({c2}), thus the new starting value for bisec is the root of the numerator: {start_value_bisec_func}.",
-                f"And the new end value for bisec is: {end_value_bisec_func}")
+            if print_messages:
+                print(
+                    f"The root of the denominator does not exist for c2<0 ({c2}), thus the new starting value for bisec is the root of the numerator: {start_value_bisec_func}.",
+                    f"And the new end value for bisec is: {end_value_bisec_func}")
         elif root_newton_numerator == 0:
             start_value_bisec_func = c2_value_exceeded
             end_value_bisec_func = root_newton_denominator * 0.99999
-            print(
-                f"The root of the numerator is zero, thus the new starting value for bisec is the value of c2*1.00001: {start_value_bisec_func}.",
-                f"And the new end value for bisec is: {end_value_bisec_func}")
+            if print_messages:
+                print(
+                    f"The root of the numerator is zero, thus the new starting value for bisec is the value of c2*1.00001: {start_value_bisec_func}.",
+                    f"And the new end value for bisec is: {end_value_bisec_func}")
         elif root_newton_denominator > root_newton_numerator:
             start_value_bisec_func = root_newton_numerator * 1.000001
             end_value_bisec_func = root_newton_denominator * 0.99999  # Frage, ob dieser Weert wirklich kleiner sein sollte als seine gefundene root
-            print(
-                f"The root of the numerator is smaller than the root of the denominator, thus the new starting value for bisec is: {start_value_bisec_func}.",
-                f"And the new end value for bisec is: {end_value_bisec_func}")
+            if print_messages:
+                print(
+                    f"The root of the numerator is smaller than the root of the denominator, thus the new starting value for bisec is: {start_value_bisec_func}.",
+                    f"And the new end value for bisec is: {end_value_bisec_func}")
         elif root_newton_denominator < root_newton_numerator:
             start_value_bisec_func = root_newton_denominator * 1.00001
             end_value_bisec_func = root_newton_numerator * 0.99999
-            print(
-                f"The root of the denominator is smaller than the root of the numerator, thus the new starting value for bisec is: {start_value_bisec_func}.",
-                f"And the new end value for bisec is: {end_value_bisec_func}")
+            if print_messages:
+                print(
+                    f"The root of the denominator is smaller than the root of the numerator, thus the new starting value for bisec is: {start_value_bisec_func}.",
+                    f"And the new end value for bisec is: {end_value_bisec_func}")
         else:
             print("Error during root finding")
         return start_value_bisec_func, end_value_bisec_func
 
     start_value_bisec, end_value_bisec = decide_starting_values_for_bisec(root_newton_numerator,
                                                                           root_newton_denominator, initial_guess, c2)
-    print('The new starting value for bisec is: ', start_value_bisec)
-    print('The new end value for bisec is: ', end_value_bisec)
+    if print_messages:
+        print('The new starting value for bisec is: ', start_value_bisec)
+        print('The new end value for bisec is: ', end_value_bisec)
     # print(f"numerator value for S_Cu = {} ", start_value_bisec)
 
     # print('The initial_guess_plot is: ', initial_guess_plot)
@@ -464,16 +285,18 @@ def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_
     # Values for P_col
     P_col_values = np.linspace(1, 1000, 100)
 
-    print('start_value_bisec: ', start_value_bisec)
-    print('end_value_bisec: ', end_value_bisec)
+    if print_messages:
+        print('start_value_bisec: ', start_value_bisec)
+        print('end_value_bisec: ', end_value_bisec)
 
     # Usage
     S_Cu_bisection = find_root_bisection(start_value_bisec, end_value_bisec)
     S_Cu_newton = find_root_newton(S_Cu_bisection)
 
-    print('\n')
-    print(f"Root found by bisection method: {S_Cu_bisection}")
-    print(f"Root found by Newton-Raphson method: {S_Cu_newton}")
+    if print_messages:
+        print('\n')
+        print(f"Root found by bisection method: {S_Cu_bisection}")
+        print(f"Root found by Newton-Raphson method: {S_Cu_newton}")
 
     P_col = P_col_expr(S_Cu_newton)
     P_dis = P_dis_expr(S_Cu_newton, P_col)
@@ -495,15 +318,16 @@ def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_
     # if q_se_st < 0 or q_se_st > Q_EoL:
     #    raise RuntimeError('Quantity of q_se_st is negative or greater than Q_EoL!')
 
-    print('Quantitiy of q_se_st is: ', q_se_st)
-    print(f"P_col: {P_col}")
-    print(f"P_dis: {P_dis}")
-    print(f"P_col + P_dis + exog(EAF) : {P_dis_col_eaf}")
-    print(f"P_Se_St - P_PrSt: {price_diff}")
-    print(f"R_recov transport: {R_recov_t}")
-    print(f"R_recov machinery: {R_recov_m}")
-    print(f"R_recov construction: {R_recov_c}")
-    print(f"R_recov products: {R_recov_p}")
+    if print_messages:
+        print('Quantitiy of q_se_st is: ', q_se_st)
+        print(f"P_col: {P_col}")
+        print(f"P_dis: {P_dis}")
+        print(f"P_col + P_dis + exog(EAF) : {P_dis_col_eaf}")
+        print(f"P_Se_St - P_PrSt: {price_diff}")
+        print(f"R_recov transport: {R_recov_t}")
+        print(f"R_recov machinery: {R_recov_m}")
+        print(f"R_recov construction: {R_recov_c}")
+        print(f"R_recov products: {R_recov_p}")
 
     return r_recov_g, S_Cu_newton, q_se_st
 

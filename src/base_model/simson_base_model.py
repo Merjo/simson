@@ -536,7 +536,7 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
         cu_outflows[t] = np.einsum('trgs,trg->rgs', cu_inflows[:t + 1], lifetime_matrix[t, :t + 1])
         cu_stocks[t] = cu_stocks[t - 1] + cu_inflows[t] - cu_outflows[t]
 
-    print(f'\n\n Root newton numerator was changed this many times: {numerator_change_counter}\n\n')
+    # print(f'\n\n Root newton numerator was changed this many times: {numerator_change_counter}\n\n')
 
     scrap_share = np.divide(scrap_in_production, production,
                             out=np.zeros_like(scrap_in_production), where=production != 0)
