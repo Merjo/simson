@@ -416,7 +416,7 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
                         print(f'Primary Price: {p_prst_price[t]}')
                         print(f'Eaf Price: {cfg.exog_eaf_USD98}')
                         print(f'S_cu_may: {s_cu_max[r, s]}')
-                        check = t == 127 and r == 10 and s == 0
+                    check = t == 127 and r == 10 and s == 0
 
                     trs_r_recov, trs_s_cu, trs_q_se_st = calc_tramp_econ_model_over_trs(q_st_total[r, s],
                                                                                         q_primary_scrap[r, s],
