@@ -16,6 +16,10 @@ def get_remind_prices():
     return p_steel
 
 
+def get_remind_baseline_prices():
+    return load_steel_prices_baseline_interpolated()[-78:]
+
+
 def load_steel_prices_1p5_interpolated():
     file_path_1p5 = os.path.join(cfg.data_path, 'original', 'remind', 'steel_prices_1p5_interpolated.csv')
     df = pd.read_csv(file_path_1p5)

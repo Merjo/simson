@@ -42,7 +42,7 @@ def _calc_scrap_share(dsms, country_specific, p_steel, p_0_scrap):
     q_st = _calc_q_st(interim_model)
     q_eol = _calc_q_eol(interim_model)
     p_0_steel = p_steel[0]
-    p_0_diss = p_0_steel - p_0_scrap - cfg.exog_eaf_USD98
+    p_0_diss = p_0_steel - p_0_scrap - cfg.exog_eaf
     e_recov = cfg.elasticity_scrap_recovery_rate
     e_diss = cfg.elasticity_dissassembly
     q_0_st, q_0_sest, s_0_se, r_0_recov = get_initial_values(interim_model, q_eol)
@@ -105,7 +105,7 @@ def _calc_alpha(p_steel, p_0_scrap, p_0_diss, a_scrap, a_dis):
     # expand p_steel across all regions
     p_steel = np.expand_dims(p_steel, axis=1)
 
-    alpha = cfg.exog_eaf_USD98 - p_steel - m - n
+    alpha = cfg.exog_eaf - p_steel - m - n
     return alpha
 
 

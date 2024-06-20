@@ -45,7 +45,7 @@ def calc_tramp_econ_model(q_st_total, q_eol_g, q_fabrication_buffer, t_eol_share
                                                                                     q_eol_g[t, r, :, s],
                                                                                     p_prst_price[t],
                                                                                     s_cu_max[t, r, s],
-                                                                                    cfg.exog_eaf_USD98)  # exog_eaf_price[0])
+                                                                                    cfg.exog_eaf)  # exog_eaf_price[0])
                 r_recov_g[t, r, :, s] = trs_r_recov
                 s_cu[t, r, s] = trs_s_cu
                 q_se_st[t, r, s] = trs_q_se_st

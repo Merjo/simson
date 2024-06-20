@@ -55,7 +55,7 @@ class Config:
         self.n_recycle_categories = len(self.recycling_categories)
         self.n_scenarios = len(self.scenarios)
 
-        self.exog_eaf_USD98 = 76
+        self.exog_eaf = 150  # used to be 76 1998 US $ from IEA Roadmap, now via Marcel Geller econ model
         self.default_lifetime_sd_pct_of_mean = 0.3
 
         self.do_model_approaches = True

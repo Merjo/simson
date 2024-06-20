@@ -423,7 +423,7 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
                         print(f'T_Eol_share: {t_eol_share[r, s]}')
                         print(f'Q_eol_g: {q_eol[r, :, s]}')
                         print(f'Primary Price: {p_prst_price[t]}')
-                        print(f'Eaf Price: {cfg.exog_eaf_USD98}')
+                        print(f'Eaf Price: {cfg.exog_eaf}')
                         print(f'S_cu_may: {s_cu_max[r, s]}')
                     check = t == 127 and r == 10 and s == 0
 
@@ -434,7 +434,7 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
                                                                                         q_eol[r, :, s],
                                                                                         p_prst_price[t, r],
                                                                                         s_cu_max[r, s],
-                                                                                        cfg.exog_eaf_USD98,
+                                                                                        cfg.exog_eaf,
                                                                                         s_cu_alloy_g_t[r, :,
                                                                                         s],
                                                                                         check,
