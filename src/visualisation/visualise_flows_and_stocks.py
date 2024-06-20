@@ -28,7 +28,7 @@ region_data_source = 'REMIND'  # Options: REMIND, Pauliuk, REMIND_EU
 steel_data_source = 'IEDatabase'  # Options: Mueller, IEDatabase
 curve_strategy = 'Duerrwaechter'  # Options: Pauliuk, Pehl, Duerrwaechter, LSTM
 model_type = 'inflow'  # Options: ['change', 'stock', 'inflow']
-per_capita = True
+per_capita = False
 ignore_1900 = False
 
 limit_regions = False
