@@ -439,6 +439,7 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
                                                                                         s],
                                                                                         check,
                                                                                         numerator_change_counter)  # exog_eaf_price[0])
+
                     r_recov_g[r, :, s] = trs_r_recov
                     s_cu[r, s] = trs_s_cu
                     q_se_st[r, s] = trs_q_se_st

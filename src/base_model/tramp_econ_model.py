@@ -306,10 +306,13 @@ def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_
     R_recov_p = R_recov_g(2, P_col)
     R_recov_t = R_recov_g(3, P_col)
 
-    r_recov_g = np.array([R_recov_c, R_recov_m, R_recov_p, R_recov_t])
-
     if R_recov_p < 0:
         R_recov_p = 0
+
+    r_recov_g = np.array([R_recov_c, R_recov_m, R_recov_p, R_recov_t])
+
+    if np.any(r_recov_g < 0):
+        raise RuntimeError('Recovery rate should not be negative.')
 
     P_dis_col_eaf = P_col + P_dis + exog_EAF
     price_diff = P_PrSt - P_dis_col_eaf
