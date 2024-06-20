@@ -11,10 +11,10 @@ from src.predict.calc_steel_stocks import get_np_pop_data
 
 do_flow_not_stock = True
 do_iron_not_copper = True
-flow_origin_process = USE_PID
-flow_destination_process = BUF_PID
+flow_origin_process = EAF_PID
+flow_destination_process = FORM_PID
 stock_process = USE_PID
-dimension = 'good'  # Options (depending on flow): 'region', 'scenario', 'good', 'waste'
+dimension = 'region'  # Options (depending on flow): 'region', 'scenario', 'good', 'waste'
 
 default_scenario = 'SSP2'  # If dimension is not 'scenario', only data from this scenario is considered.
 default_region = 'World'  # If dimension is not 'region', only data from this region is considered.
@@ -42,7 +42,7 @@ end_year = 2050
 
 # If getting wrong results it might be that recalculating base_model and dsms help.
 # This is especially relevant when config has been changed after last load of base_model.
-force_recalculate = False
+force_recalculate = True
 
 
 def visualise():

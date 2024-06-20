@@ -8,6 +8,7 @@ from src.read_data.load_data import load_lifetimes
 from src.base_model.model_tools import calc_change_timeline
 from src.economic_model.econ_model_tools import get_steel_prices
 from src.econ_tramp_model.steel_price_curves import get_bof_prices
+from src.read_data.read_remind_prices import get_remind_prices
 
 
 def load_model_dsms(country_specific, do_past_not_future, model_type=cfg.model_type, do_econ_model=cfg.do_model_economy,
@@ -111,13 +112,14 @@ def _calc_future_dsms(country_specific, model_type, production, trade, indirect_
 
 
 def load_econ_dsms(dsms):
-    p_steel = get_bof_prices()
+    p_steel = get_remind_prices()
+
     p_0_st = p_steel[0]
     factor = (p_steel / p_0_st) ** cfg.elasticity_steel
-    for region_dsms in dsms:
+    for region_idx, region_dsms in enumerate(dsms):
         for category_dsms in region_dsms:
             for scenario_idx, scenario_dsm in enumerate(category_dsms):
-                scenario_dsm.i[cfg.econ_base_year - cfg.start_year:] *= factor[:]
+                scenario_dsm.i[cfg.econ_base_year - cfg.start_year:] *= factor[:, region_idx]
                 new_scenario_dsm = MultiDim_DynamicStockModel(t=scenario_dsm.t,
                                                               i=scenario_dsm.i,
                                                               lt=scenario_dsm.lt)

@@ -24,10 +24,10 @@ def expand_trade_to_past_and_future(trade, scaler, first_available_year, last_av
     def _scale_trade_via_trade_factor(do_before):
         if do_before:
             scaler_data = scaler[:start_idx]
-            trade_factor = trade[0] / scaler[start_idx]
+            trade_factor = np.average(trade[0:5] / scaler[start_idx:start_idx + 5], axis=0)
         else:
             scaler_data = scaler[end_idx + 1:]
-            trade_factor = trade[-1] / scaler[end_idx]
+            trade_factor = np.average(trade[-6:-1] / scaler[end_idx - 5:end_idx], axis=0)
         new_trade_data = np.einsum('trs,rs->trs', scaler_data, trade_factor)
         new_trade_data = balance_trade(new_trade_data)
 

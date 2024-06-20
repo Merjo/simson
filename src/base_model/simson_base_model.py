@@ -24,6 +24,7 @@ from src.read_data.load_data import load_lifetimes
 from src.base_model.tramp_econ_model import calc_tramp_econ_model_over_trs, root_newton_numerato_func_changer
 from src.economic_model.econ_model_tools import get_steel_prices
 from src.econ_tramp_model.steel_price_curves import get_bof_prices, get_eaf_prices
+from src.read_data.read_remind_prices import get_remind_prices
 
 #  constants: MFA System process IDs
 
@@ -356,6 +357,12 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
     scrap_imports, scrap_exports = get_scrap_trade(country_specific=country_specific,
                                                    available_scrap_by_category=buffer_eol)
     numerator_change_counter = 0
+
+    prices = get_remind_prices()
+    p_prst_price_from_2023 = prices
+    p_prst_price = np.ones((201, 12)) * p_prst_price_from_2023[0]
+    p_prst_price[123:] = prices
+
     for t in range(1, 201):
         cu_buffer[t] = cu_outflows[t - 1]
         cu_fabrication_buffer[t] = cu_forming_scrap[t - 1] + cu_fabrication_scrap[t - 1]
@@ -392,11 +399,6 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
 
             q_primary_scrap = fabrication_buffer[t]
 
-            exog_eaf_price = get_eaf_prices()
-            p_prst_price_from_2023 = get_bof_prices()
-            p_prst_price = np.ones(201) * p_prst_price_from_2023[0]
-            p_prst_price[123:] = get_bof_prices()
-
             # account for forming losses to get Q_St -> F3_4 * Frm_yield losses
 
             # import the stock-driven steel demand for all regions and then adjust it via the
@@ -430,7 +432,7 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
                                                                                         q_eol_total[r, s],
                                                                                         t_eol_share[r, s],
                                                                                         q_eol[r, :, s],
-                                                                                        p_prst_price[t],
+                                                                                        p_prst_price[t, r],
                                                                                         s_cu_max[r, s],
                                                                                         cfg.exog_eaf_USD98,
                                                                                         s_cu_alloy_g_t[r, :,
@@ -493,8 +495,8 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
             cu_scrap_in_preproduction[t] = cu_available_scrap[t] * scrap_used_rate[t]
         elif cfg.recycling_strategy == 'tramp':
             cu_scrap_in_preproduction[t] = np.minimum(cu_available_scrap[t], cu_tolerated_sum_t)
-            scrap_used_rate[t] = np.divide(cu_scrap_in_production[t], cu_available_scrap[t],
-                                           out=np.zeros_like(cu_scrap_in_production[t]),
+            scrap_used_rate[t] = np.divide(cu_scrap_in_preproduction[t], cu_available_scrap[t],
+                                           out=np.zeros_like(cu_scrap_in_preproduction[t]),
                                            where=cu_available_scrap[t] != 0)
             scrap_in_production[t] = available_scrap[t] * scrap_used_rate[t]
         elif cfg.recycling_strategy == 'base':
