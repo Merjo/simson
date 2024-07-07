@@ -22,7 +22,7 @@ def predict_duerrwaechter(stocks, gdp_data):
     s_0 = stocks[-1]
     g_0 = gdp_data_past[-1]
     # TODO delete ? print(f'Dürrwächter global saturation level for model type {cfg.model_type}-driven is: {a}')
-    a = 17.4
+    a = 14
     b_regions = -np.log(1 - (s_0 / a)) / g_0
 
     # _test_plot_global_a_b(stocks, gdp_data_past, a, b_test)

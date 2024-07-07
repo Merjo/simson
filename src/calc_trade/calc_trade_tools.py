@@ -104,10 +104,14 @@ def visualize_trade(trade, steel_type):
 
     regions = load_region_names_list()
     years = cfg.years
-    for i, region in enumerate(regions):
+    colors = ['#FF0000', '#00FF00', '#0000FF', '#FFA500', '#800080', '#00FFFF',
+              '#FF00FF', 'grey', 'black', '#FFC0CB', '#A52A2A', 'darkgreen']
+
+    for i, region in enumerate(regions, colors):
         plt.plot(years, trade[:, i])
     plt.legend(regions)
     plt.title(f'Development of {steel_type} trade of steel across world regions.')
     plt.xlabel('Time (y)')
     plt.ylabel('Steel (t)')
     plt.show()
+

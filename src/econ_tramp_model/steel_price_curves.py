@@ -1,10 +1,6 @@
 import sympy
 import matplotlib.pyplot as plt
 import sys
-
-# Add the specific directory to the Python path
-script_directory = '/Users/marcelgeller/PycharmProjects/curve_informing_simson/venv/Testings/curve_informing'
-sys.path.append(script_directory)
 from src.tools.config import cfg
 import numpy as np
 

@@ -6,18 +6,20 @@ from src.tools.config import cfg
 from src.read_data.load_data import load_region_names_list
 from src.economic_model.simson_econ_model import load_simson_econ_model
 from src.predict.calc_steel_stocks import get_np_pop_data
+from matplotlib.ticker import FuncFormatter
+from src.base_model.simson_base_model import compute_flows
 
 # MAIN PARAMETERS
 
 do_flow_not_stock = True
 do_iron_not_copper = True
-flow_origin_process = EAF_PID
-flow_destination_process = FORM_PID
-stock_process = USE_PID
+flow_origin_process = SCRAP_PID
+flow_destination_process = EXC_PID
+stock_process = OBS_PID
 dimension = 'region'  # Options (depending on flow): 'region', 'scenario', 'good', 'waste'
 
 default_scenario = 'SSP2'  # If dimension is not 'scenario', only data from this scenario is considered.
-default_region = 'World'  # If dimension is not 'region', only data from this region is considered.
+default_region = 'region'  # If dimension is not 'region', only data from this region is considered.
 # 'World' denotes the entire world data, hence a sum is given for all world regions.
 # Default region must be in region names list of 'region_data_source'.
 
@@ -42,8 +44,10 @@ end_year = 2050
 
 # If getting wrong results it might be that recalculating base_model and dsms help.
 # This is especially relevant when config has been changed after last load of base_model.
-force_recalculate = True
+force_recalculate = False
 
+def billions_to_millions(x, pos):
+    return '%1.0f' % (x * 1e-6)
 
 def visualise():
     model = _get_model_for_visualisation()
@@ -53,32 +57,61 @@ def visualise():
     legend = _get_legend(regions)
     used_labels = _get_used_labels(legend)
     values = _prepare_values(flow_or_stock, name, regions)
-    colors = ['lightgreen', 'orangered', 'dodgerblue', 'brown', 'greenyellow',
-              'crimson', 'olive', 'mediumseagreen', 'black', 'mediumblue', 'orange', 'magenta']
+    colors = ['#FF0000', '#00FF00', '#0000FF', '#FFA500', '#800080', '#00FFFF',
+              '#FF00FF', 'grey', 'black', '#FFC0CB', '#A52A2A', 'darkgreen']
 
     years = cfg.years if not limit_time else range(start_year, end_year + 1)
     if ignore_1900 and not limit_time:
         values = values[:, 1:]
         years = years[1:]
-    for i, line in enumerate(values):
-        label = legend[i]
-        if limit_regions:
-            if label not in used_labels:
-                continue
-        plt.plot(years, line, label=label, color=colors[i])
+
+    # Adjusted this part to plot only the 'World' region if specified
+    if default_region == 'World':
+        if do_iron_not_copper:
+            color_world = 'grey'
+        else: color_world = 'orange'
+        plt.plot(years, np.sum(values, axis=0), label='World', color=color_world)  # Sum across regions for 'World'
+    else:
+        for i, line in enumerate(values):
+            label = legend[i]
+            if limit_regions:
+                if label not in used_labels:
+                    continue
+            plt.plot(years, line, label=label, color=colors[i])
+
     plt.legend()
+    title_model = None
+    if cfg.recycling_strategy == 'base':
+        title_model = 'Base Model'
+    elif cfg.recycling_strategy == 'tramp':
+        title_model = 'Tramp Model'
+
+    title_model_econ = ''
+    if cfg.do_model_economy == True:
+        title_model_econ = ' Econ'
+
     flow_or_stock_string = 'flow' if do_flow_not_stock else 'stock'
-    title = f"{name} {flow_or_stock_string} by '{dimension}'\n"
+    title = f"{name} {flow_or_stock_string} by {dimension}, {title_model}{title_model_econ}"
     if not dimension == 'region':
         title += f"default region '{default_region}'"
     if not dimension == 'scenario':
-        title += f", default scenario '{default_scenario}'"
-    plt.title(title)
-    plt.xlabel('Time (y)')
-    plt.ylabel('Steel (t)')
+        title += f", {default_scenario}"
+    plt.title(title, pad=20)
+    plt.xlabel('Year', fontweight='normal')
+    if do_iron_not_copper:
+        if do_flow_not_stock:
+            plt.ylabel('Steel [Mt/yr]', fontweight='normal')
+        else:
+            plt.ylabel('Steel [Mt]', fontweight='normal')
+    else: plt.ylabel('Copper [Mt/yr]', fontweight='normal')
+    values_2008 = np.sum(values[:,109])/1000000
+    print(f"{name} {flow_or_stock_string} by {dimension}, {title_model}{title_model_econ}: {values_2008}")
+    #plt.axvline(x=2008, linestyle='--')
+    #plt.text(2008, plt.ylim()[1], f'{values_2008:.2f} Mt', color='black', verticalalignment='top')
+    ax = plt.gca()
+    # Set the y-axis formatter
+    #ax.yaxis.set_major_formatter(FuncFormatter(billions_to_millions))
     plt.show()
-
-
 def _get_flow_or_stock(model):
     if do_flow_not_stock:
         return model.get_flow(flow_origin_process, flow_destination_process)
@@ -190,7 +223,7 @@ def _get_model_for_visualisation():
         cfg.model_type = model_type
         recalculate = True
 
-    if False:  # do_load_econ_model:  #TODO Delete?
+    if False:  # do_load_econ_model:
         return load_simson_econ_model(recalculate=recalculate, recalculate_dsms=recalculate)
     else:
         return load_simson_base_model(recalculate=recalculate, recalculate_dsms=recalculate)

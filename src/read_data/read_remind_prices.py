@@ -6,7 +6,7 @@ import numpy as np
 
 def get_remind_prices():
     if cfg.price_scenario == '1_5_degree':
-        p_steel = load_steel_prices_1p5_interpolated()
+        p_steel = load_steel_prices_1p5_interpolated() #*0.8
     elif cfg.price_scenario == 'baseline':
         p_steel = load_steel_prices_baseline_interpolated()
     else:
@@ -53,12 +53,15 @@ def load_steel_prices_baseline_interpolated():
 def _test():
     prices_1p5 = load_steel_prices_1p5_interpolated()
     prices_baseline = load_steel_prices_baseline_interpolated()
+    baseline = get_remind_baseline_prices()[0]
 
     print("Shape of prices array baseline scenario:", load_steel_prices_1p5_interpolated().shape)
     print("First column of prices array 1p5 scenario:", load_steel_prices_1p5_interpolated()[:, 0])
 
     print("Shape of prices array baseline scenario:", load_steel_prices_baseline_interpolated().shape)
     print("First column of prices array baseline scenario:", load_steel_prices_baseline_interpolated()[:, 0])
+
+    print("test of prices dsms baseline scenario:", get_remind_baseline_prices())
 
 
 if __name__ == '__main__':

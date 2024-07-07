@@ -307,7 +307,10 @@ def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_
     R_recov_t = R_recov_g(3, P_col)
 
     if R_recov_p < 0:
-        R_recov_p = 0
+        R_recov_p = 0.3
+
+    r_recov_total = (R_recov_c*Q_EoL_g[0]+R_recov_m*Q_EoL_g[1]+R_recov_p*Q_EoL_g[2]+R_recov_t*Q_EoL_g[3])/Q_EoL
+    #print('\nr_recov_total: ', r_recov_total,'\n')
 
     r_recov_g = np.array([R_recov_c, R_recov_m, R_recov_p, R_recov_t])
 
@@ -318,8 +321,33 @@ def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_
     price_diff = P_PrSt - P_dis_col_eaf
 
     q_se_st = (0.8 * S_Cu_max * (Q_St - Q_Fabrication_Buffer)) / S_Cu_newton
-    # if q_se_st < 0 or q_se_st > Q_EoL:
-    #    raise RuntimeError('Quantity of q_se_st is negative or greater than Q_EoL!')
+    if q_se_st < 0:
+        print('Quantity of q_se_st was negative and set to zero!')
+        q_se_st = 0
+
+    s_cu_c = cfg.s_cu_0[0] * (P_dis/cfg.p_0_dis)**e_dis #+ S_Cu_alloy_g[0]
+    if s_cu_c > 0.001:
+        s_cu_c = 0.001
+    if s_cu_c < 0.0004:
+        s_cu_c = 0.0004
+    s_cu_m = cfg.s_cu_0[1] * (P_dis/cfg.p_0_dis)**e_dis #+ S_Cu_alloy_g[1]
+    if s_cu_m > 0.0025:
+        s_cu_m = 0.0025
+    if s_cu_m < 0.0004:
+        s_cu_m = 0.0004
+    s_cu_p = cfg.s_cu_0[2] * (P_dis/cfg.p_0_dis)**e_dis #+ S_Cu_alloy_g[2]
+    if s_cu_p > 0.004:
+        s_cu_p = 0.004
+    if s_cu_p < 0.0004:
+        s_cu_p = 0.0004
+    s_cu_t =  cfg.s_cu_0[3] * (P_dis/cfg.p_0_dis)**e_dis #+ S_Cu_alloy_g[3]
+    if s_cu_t > 0.003:
+        s_cu_t = 0.003
+    if s_cu_t < 0.0004:
+        s_cu_t = 0.0004
+
+    s_cu_g = np.array([s_cu_c, s_cu_m, s_cu_p, s_cu_t])
+
 
     if print_messages:
         print('Quantitiy of q_se_st is: ', q_se_st)
@@ -331,8 +359,11 @@ def calc_tramp_econ_model_over_trs(Q_St, Q_Fabrication_Buffer, Q_EoL, S_EoL_net_
         print(f"R_recov machinery: {R_recov_m}")
         print(f"R_recov construction: {R_recov_c}")
         print(f"R_recov products: {R_recov_p}")
+        print(f"External Copper: {s_cu_g}")
 
-    return r_recov_g, S_Cu_newton, q_se_st
+
+
+    return r_recov_g, S_Cu_newton, q_se_st, r_recov_total, s_cu_g
 
 
 def _test():

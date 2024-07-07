@@ -20,7 +20,8 @@ def load_pauliuk_lifetimes():
 
     mean = df.to_numpy()
     std_dev = mean * 0.3
-
+    #print(mean)
+    #print(std_dev)
     return mean, std_dev
 
 

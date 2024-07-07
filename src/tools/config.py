@@ -27,8 +27,8 @@ class Config:
         self.end_year = 2100
 
         self.curve_strategy = 'Duerrwaechter'  # Options: Pauliuk, Pehl, Duerrwaechter, LSTM
-        self.recycling_strategy = 'tramp'  # Options: base, tramp
-        self.do_model_economy = True
+        self.recycling_strategy = 'base'  # Options: base, tramp
+        self.do_model_economy = False
         self.econ_base_year = 2023
         self.steel_data_source = 'IEDatabase'  # Options: Mueller, IEDatabase, ScrapAge
         self.pop_data_source = 'UN'  # Options: UN, KC-Lutz (only for scenarios)
@@ -74,8 +74,8 @@ class Config:
         self.simulation_name = 'SIMSON_Test_1'
         self.region_data_source = 'REMIND'  # Options: REMIND, Pauliuk, REMIND_EU
 
-        self.max_scrap_share_production_base_model = 0.60
-        self.scrap_in_BOF_rate = 0.22
+        self.max_scrap_share_production_base_model = 1.0
+        self.scrap_in_BOF_rate = 0.225
         self.forming_yield = 0.937246
         self.forming_losses = 0.1965
 
@@ -109,36 +109,36 @@ class Config:
 
         '''Curve Informing Recovery Rate'''
 
-        self.r_0_recov = np.array([0.85, 0.9, 0.5, 0.9])
-        self.rp = np.array([0.9, 0.95, 0.7, 0.95])
+        self.r_0_recov = np.array([0.85, 0.9, 0.5, 0.9]) #*1.05
+        self.rp = np.array([0.9, 0.95, 0.7, 0.95]) #*1.05
         self.p0 = np.array([150, 150, 150, 150])
         self.pp = np.array([300, 300, 300, 300])
         self.r_free = np.array([0, 0, 0, 0])
 
         # recovery rate transport
-        self.r_0_recov_transport = 0.9
-        self.rp_transport = 0.95
+        self.r_0_recov_transport = 0.9 #*1.05
+        self.rp_transport = 0.95 #*1.05
         self.p0_transport = 150
         self.pp_transport = 300
         self.r_free_transport = 0
 
         # recovery rate machinery
-        self.r_0_recov_machinery = 0.9
-        self.rp_machinery = 0.95
+        self.r_0_recov_machinery = 0.9 #*1.05
+        self.rp_machinery = 0.95 #*1.05
         self.p0_machinery = 150
         self.pp_machinery = 300
         self.r_free_machinery = 0
 
         # recovery rate construction
-        self.r_0_recov_construction = 0.85
-        self.rp_construction = 0.9
+        self.r_0_recov_construction = 0.85 #*1.05
+        self.rp_construction = 0.9 #*1.05
         self.p0_construction = 150
         self.pp_construction = 300
         self.r_free_construction = 0
 
         # recovery rate products
-        self.r_0_recov_products = 0.5
-        self.rp_products = 0.7
+        self.r_0_recov_products = 0.5 #*1.05
+        self.rp_products = 0.7 #*1.05
         self.p0_products = 150
         self.pp_products = 300
         self.r_free_products = 0
@@ -210,7 +210,7 @@ class Config:
 
     @property
     def econ_start_index(self):
-        return self.econ_base_year - self.start_year + 1
+        return self.econ_base_year - self.start_year #+ 1
 
     def _price_change_list(self):
         if isinstance(self.steel_price_change_by_scenario, list):

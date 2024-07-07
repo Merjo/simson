@@ -25,6 +25,7 @@ from src.base_model.tramp_econ_model import calc_tramp_econ_model_over_trs, root
 from src.economic_model.econ_model_tools import get_steel_prices
 from src.econ_tramp_model.steel_price_curves import get_bof_prices, get_eaf_prices
 from src.read_data.read_remind_prices import get_remind_prices
+from src.visualisation.test_visualisations.scrap_trade import visualize_scrap
 
 #  constants: MFA System process IDs
 
@@ -362,10 +363,12 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
     p_prst_price_from_2023 = prices
     p_prst_price = np.ones((201, 12)) * p_prst_price_from_2023[0]
     p_prst_price[123:] = prices
+    r_recov_total = np.zeros((78, 12, 5))
 
-    for t in range(1, 201):
+    for t in range(0, 201):
         cu_buffer[t] = cu_outflows[t - 1]
         cu_fabrication_buffer[t] = cu_forming_scrap[t - 1] + cu_fabrication_scrap[t - 1]
+        #cu_tot= cu_buffer[t] + cu_fabrication_buffer[t]
 
         s_cu_alloy_g_t = np.divide(cu_buffer[t], outflow_buffer[t],
                                    out=np.zeros_like(cu_buffer[t]),
@@ -376,17 +379,34 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
             do_econ_model_this_year = True
             q_st = production_by_intermediate[t] / production_yield
             q_eol = outflow_buffer[t]
-
+            t_eol_g = scrap_imports[t] - scrap_exports[t]  # taken as best guess
+            q_eol_total = np.sum(q_eol, axis=1)
+            #print('dim q_eol: ',q_eol.shape)
+            '''trade_share_per_eol = np.divide(t_eol_g,q_eol,
+                                            out=np.zeros_like(q_eol),
+                                            where=q_eol != 0)
+            s_cu_alloy_g_trade_tot = np.einsum('rgs,rgs->rgs', trade_share_per_eol, cu_buffer[t])
+            print('s_cu_alloy_g_trade_tot shape : ', s_cu_alloy_g_trade_tot.shape)
+            print('s_cu_alloy_g_trade_tot: ', s_cu_alloy_g_trade_tot)
+            s_cu_alloy_g_trade = np.divide(s_cu_alloy_g_trade_tot, t_eol_g, #wieso nicht negativ wenn s_cu_alloy_g_trade_tot negativ für manche?
+                                           out=np.zeros_like(t_eol_g),
+                                           where=t_eol_g != 0
+                                           ) #s_cu_alloy_g_trade müsste man dann noch auf s_cu_alloy_g_t addieren
+            print('s_cu_alloy_g_trade shape : ', s_cu_alloy_g_trade.shape)
+            print('s_cu_alloy_g_trade: ', s_cu_alloy_g_trade)'''
+            #print('trade_share_per_eol shape: ', trade_share_per_eol.shape)
+            #print('trade_share_per_eol: ', trade_share_per_eol)
             # TODO: note - in  econ model, scrpa trade is scaled by BUFFER not available scrap after recycling as this
             #  shall be calculated via the econ moddle
 
             ip_tlrc_i = tolerances
-            t_eol_g = scrap_imports[t] - scrap_exports[t]  # taken as best guess
-            q_eol_total = np.sum(q_eol, axis=1)
             t_eol_share = np.divide(np.sum(t_eol_g, axis=1),
                                     q_eol_total,
                                     out=np.zeros_like(q_eol_total),
                                     where=q_eol_total != 0)
+            #print(t_eol_share.shape)
+            #print(s_cu_alloy_g_t.shape)
+            #s_cu_alloy_g_t = s_cu_alloy_g_t * (1+t_eol_share)
             # calculation of s_cu_max
             s_cu_max_numerator = np.einsum('ris,i->ris', production_by_intermediate[t], ip_tlrc_i)
             sum_numerator = np.einsum('ris->rs', s_cu_max_numerator)
@@ -407,6 +427,7 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
             # load parameter
 
             r_recov_g = np.zeros((12, 4, 5))
+            s_cu_g = np.zeros((12, 4, 5))
             s_cu = np.zeros((12, 5))
             q_se_st = np.zeros((12, 5))
             # q_eol_total = np.sum(q_eol, axis=1)
@@ -427,7 +448,7 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
                         print(f'S_cu_may: {s_cu_max[r, s]}')
                     check = t == 127 and r == 10 and s == 0
 
-                    trs_r_recov, trs_s_cu, trs_q_se_st = calc_tramp_econ_model_over_trs(q_st_total[r, s],
+                    trs_r_recov, trs_s_cu, trs_q_se_st, trs_r_recov_total, s_cu_g_trs = calc_tramp_econ_model_over_trs(q_st_total[r, s],
                                                                                         q_primary_scrap[r, s],
                                                                                         q_eol_total[r, s],
                                                                                         t_eol_share[r, s],
@@ -443,6 +464,9 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
                     r_recov_g[r, :, s] = trs_r_recov
                     s_cu[r, s] = trs_s_cu
                     q_se_st[r, s] = trs_q_se_st
+                    s_cu_g[r, :, s] = s_cu_g_trs
+                    #if t >= econ_start_index:
+                    r_recov_total[t-econ_start_index, r, s] = trs_r_recov_total
 
             buffer_eol[t] = np.einsum(f'rgs,rgs->rgs',
                                       outflow_buffer[t],
@@ -468,6 +492,11 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
         current_recovery_rate = recovery_rate
         if do_econ_model_this_year:
             current_recovery_rate = r_recov_g
+            #print('recov rate per good: ', current_recovery_rate[:,:,1], '\n')
+            #if t ==200:
+                #print('shape: ', r_recov_total.shape)
+                #print('r_recov_g', r_recov_g[:,:,1])
+                #print('recov rate total SSP2 scenario: ', r_recov_total[:,:,1],'\n\n')
         recovery_rate_dims = 'rgs' if do_econ_model_this_year else 'g'
         cu_buffer_eol[t] = np.einsum(f'rgs,{recovery_rate_dims}->rgs', cu_buffer[t], current_recovery_rate)
 
@@ -481,13 +510,23 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
             a = 0
         cu_total_eol_scrap_t = cu_buffer_eol[t] + cu_scrap_imports[t] - cu_scrap_exports[t]
         cu_eol_recycling[t] = cu_total_eol_scrap_t
+        #print('cu_eol_recycling shape: ', cu_eol_recycling.shape)
+        #print(f"cu_eol_recycling year {t}: {cu_eol_recycling[t]}")
         if do_econ_model_this_year:
-            cu_external[t] = _calc_econ_cu_external(s_cu, ext_copper_rate, total_eol_scrap[t],
-                                                    cu_total_eol_scrap_t)
+            cu_external[t] = s_cu_g
+            cu_external[t]= np.einsum('rgs,rgs->rgs',buffer_eol[t], cu_external[t])
+            #print('s_cu_g SSP2: ', s_cu_g[:,:,1])
+            '''cu_external[t] = _calc_econ_cu_external(s_cu, ext_copper_rate, total_eol_scrap[t],
+                                                    cu_total_eol_scrap_t)'''
+            #print('cu_external[t].shape: ', cu_external[t].shape)
+            #print(f"cu_external year {t}: {cu_external[t]}")
         cu_recycling_scrap[t] = cu_total_eol_scrap_t + cu_external[t]
         cu_available_scrap[t] = cu_fabrication_buffer[t] + np.sum(cu_recycling_scrap[t], axis=1)
         cu_tolerated[t] = np.einsum('ris,i->ris', production_by_intermediate[t], tolerances)
         cu_tolerated_sum_t = np.sum(cu_tolerated[t], axis=1)
+        cu_tol_ssp2 = cu_tolerated_sum_t[:, 1]/1000000
+        cu_tol_global = np.sum(cu_tol_ssp2, axis=0)
+        #print(f"cu_tol_global in year {1900+t}: {cu_tol_global}")
         if do_econ_model_this_year:
             scrap_in_production[t] = np.minimum(available_scrap[t], inflow_production[t])
             scrap_used_rate[t] = np.divide(scrap_in_production[t], available_scrap[t],
@@ -577,6 +616,15 @@ def compute_flows(model: MFAsystem, country_specific: bool, max_scrap_share_in_p
     cu_scrap_excess = cu_available_scrap - cu_scrap_in_preproduction
     cu_buffer_obsolete = cu_buffer - cu_buffer_eol
 
+    scrap_imports_vis = scrap_imports[:,:,:,1]
+    scrap_imports_vis = np.sum(scrap_imports_vis,axis=2)
+    #print(scrap_imports_vis.shape)
+    scrap_exports_vis = scrap_exports[:, :, :, 1]
+    scrap_exports_vis = np.sum(scrap_exports_vis, axis=2)
+    #print(scrap_exports_vis.shape)
+    scrap = scrap_imports_vis - scrap_exports_vis
+    visualize_scrap(scrap)
+
     # join together
     iron_production = np.stack([iron_production, cu_iron_production], axis=1)
     scrap_in_bof = np.stack([scrap_in_bof, cu_scrap_in_bof], axis=1)
@@ -628,6 +676,7 @@ def _calc_econ_cu_external(total_copper_rate, ext_copper_rate, scrap, cu_interna
     cu_external = total_copper_g - cu_internal_scrap
 
     return cu_external
+
 
 
 def _calc_cu_trade(cu_inflow, inflow, imports, exports):

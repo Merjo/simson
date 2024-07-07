@@ -114,7 +114,7 @@ def _calc_future_dsms(country_specific, model_type, production, trade, indirect_
 def load_econ_dsms(dsms):
     p_steel = get_remind_prices()
 
-    p_0_st = get_remind_baseline_prices()[0]
+    p_0_st = get_remind_baseline_prices()
     factor = (p_steel / p_0_st) ** cfg.elasticity_steel
     for region_idx, region_dsms in enumerate(dsms):
         for category_dsms in region_dsms:
